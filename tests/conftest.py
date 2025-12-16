@@ -60,9 +60,9 @@ def test_db():
 
     try:
         os.remove(TEST_DB)
-        print("Baza danych usunięta po teście.")
+        print("Database removed after test.")
     except Exception as e:
-        print(f"Błąd podczas czyszczenia bazy danych: {e}")
+        print(f"Exception while cleaning database: {e}")
 
 
 @pytest.fixture(scope="function")

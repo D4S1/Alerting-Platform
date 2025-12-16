@@ -27,7 +27,19 @@ def test_debug_db(client, test_db):
         print("Current admins in DB (via direct access):", rows)
         
 
-def test_delete_service(client):
+def test_delete_service(client, test_db):
+    import sqlite3
+    conn = sqlite3.connect(test_db)
+    conn.row_factory = sqlite3.Row 
+    
+    with conn:
+        cur = conn.execute("SELECT rowid, * FROM services")
+        rows = [dict(row) for row in cur.fetchall()]
+        print("Current services in DB (via direct access):", rows)
+
+        cur = conn.execute("SELECT rowid, * FROM service_admins")
+        rows = [dict(row) for row in cur.fetchall()]
+        print("Current admins in DB (via direct access):", rows)
     resp = client.delete("/services/2")
     assert resp.status_code == 200
     assert resp.json()["status"] == "service deleted"
