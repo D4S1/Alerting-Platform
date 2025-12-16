@@ -12,20 +12,12 @@ def test_add_service(client):
     assert resp.status_code == 200
     assert resp.json()["status"] == "service added"
 
-# tests/test_api.py (Poprawiony test)
-
-# Dodaj test_db jako parametr, aby Pytest dostarczył ścieżkę do pliku DB.
 def test_debug_db(client, test_db): 
-    # Nie importuj api.db i nie używaj get_db()
-    import sqlite3 # Upewnij się, że sqlite3 jest dostępne
-
-    # Otwórz połączenie bezpośrednio do pliku bazy danych
+    import sqlite3
     conn = sqlite3.connect(test_db)
-    
-    # Użyj Row Factory, aby uzyskać wyniki jako słowniki
     conn.row_factory = sqlite3.Row 
     
-    with conn: # Użyj kontekstu połączenia
+    with conn:
         cur = conn.execute("SELECT rowid, * FROM services")
         rows = [dict(row) for row in cur.fetchall()]
         print("Current services in DB (via direct access):", rows)
@@ -34,7 +26,6 @@ def test_debug_db(client, test_db):
         rows = [dict(row) for row in cur.fetchall()]
         print("Current admins in DB (via direct access):", rows)
         
-    # Połączenie jest automatycznie zamykane przez kontekst 'with conn:'
 
 def test_delete_service(client):
     resp = client.delete("/services/2")
