@@ -33,7 +33,6 @@ def delete_service(service_id: int):
         db.execute(
             "DELETE FROM service_admins WHERE service_id = ?", (service_id,)
         )
-
     return {"status": "service deleted"}
 
 @app.put("/services/{service_id}/admin")
