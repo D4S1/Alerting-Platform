@@ -18,11 +18,11 @@ def test_debug_db(client, test_db):
     conn.row_factory = sqlite3.Row 
     
     with conn:
-        cur = conn.execute("SELECT rowid, * FROM services")
+        cur = conn.execute("SELECT * FROM services")
         rows = [dict(row) for row in cur.fetchall()]
         print("Current services in DB (via direct access):", rows)
 
-        cur = conn.execute("SELECT rowid, * FROM service_admins")
+        cur = conn.execute("SELECT * FROM service_admins")
         rows = [dict(row) for row in cur.fetchall()]
         print("Current admins in DB (via direct access):", rows)
         
@@ -33,11 +33,11 @@ def test_delete_service(client, test_db):
     conn.row_factory = sqlite3.Row 
     
     with conn:
-        cur = conn.execute("SELECT rowid, * FROM services")
+        cur = conn.execute("SELECT * FROM services")
         rows = [dict(row) for row in cur.fetchall()]
         print("Current services in DB (via direct access):", rows)
 
-        cur = conn.execute("SELECT rowid, * FROM service_admins")
+        cur = conn.execute("SELECT * FROM service_admins")
         rows = [dict(row) for row in cur.fetchall()]
         print("Current admins in DB (via direct access):", rows)
     resp = client.delete("/services/2")
@@ -46,7 +46,7 @@ def test_delete_service(client, test_db):
 
 def test_change_service_admin(client):
     resp = client.put(
-        "/services/0/admin",
+        "/services/1/admin",
         json={
             "admin_id": 1,
             "role": "primary",

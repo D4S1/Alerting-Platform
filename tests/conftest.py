@@ -20,6 +20,7 @@ def test_db():
     conn.executescript(
         """
         CREATE TABLE services (
+            id INTEGER PRIMARY KEY,
             name TEXT,
             IP TEXT,
             frequency_seconds INTEGER,
@@ -27,12 +28,14 @@ def test_db():
         );
 
         CREATE TABLE admins (
+            id INTEGER PRIMARY KEY,
             name TEXT,
             contact_type TEXT,
             contact_value TEXT
         );
 
         CREATE TABLE service_admins (
+            id INTEGER PRIMARY KEY,
             service_id INTEGER,
             admin_id INTEGER,
             role TEXT
@@ -64,16 +67,21 @@ def test_db():
     except Exception as e:
         print(f"Exception while cleaning database: {e}")
 
-
 @pytest.fixture(scope="function")
-def client(test_db, monkeypatch):
-    monkeypatch.setattr(db_module, "DB_PATH", test_db)
-    test_client = TestClient(app)
-    yield test_client
-    
-    try:
+def client(test_db):
+    # Dependency override
+    def override_get_db():
         conn = sqlite3.connect(test_db)
-        conn.execute("ROLLBACK")
-        conn.close()
-    except Exception:
-        pass
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
+
+    app.dependency_overrides[db_module.get_db] = override_get_db
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()

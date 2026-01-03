@@ -1,59 +1,56 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from api.db import get_db
 from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate
 
 app = FastAPI(title="Monitoring API")
 
 @app.post("/services")
-def add_service(service: ServiceCreate):
-    with get_db() as db:
-        db.execute(
-            """
-            INSERT INTO services (name, IP, frequency_seconds, alerting_window_seconds)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                service.name,
-                service.IP,
-                service.frequency_seconds,
-                service.alerting_window_seconds,
-            ),
-        )
+def add_service(service: ServiceCreate, db = Depends(get_db)):
+    db.execute(
+        """
+        INSERT INTO services (name, IP, frequency_seconds, alerting_window_seconds)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            service.name,
+            service.IP,
+            service.frequency_seconds,
+            service.alerting_window_seconds,
+        ),
+    )
     return {"status": "service added"}
 
 @app.delete("/services/{service_id}")
-def delete_service(service_id: int):
-    with get_db() as db:
-        cur = db.execute(
-            "DELETE FROM services WHERE rowid = ?", (service_id,)
-        )
-        if cur.rowcount == 0:
-            raise HTTPException(404, "Service not found")
+def delete_service(service_id: int, db = Depends(get_db)):
+    cur = db.execute(
+        "DELETE FROM services WHERE id = ?", (service_id,)
+    )
+    if cur.rowcount == 0:
+        raise HTTPException(404, "Service not found")
 
-        db.execute(
-            "DELETE FROM service_admins WHERE service_id = ?", (service_id,)
-        )
+    db.execute(
+        "DELETE FROM service_admins WHERE service_id = ?", (service_id,)
+    )
     return {"status": "service deleted"}
 
 @app.put("/services/{service_id}/admin")
-def change_service_admin(service_id: int, update: ServiceAdminUpdate):
-    with get_db() as db:
-        cur = db.execute(
-            """
-            UPDATE service_admins
-            SET admin_id = ?
-            WHERE service_id = ? AND role = ?
-            """,
-            (update.admin_id, service_id, update.role),
-        )
+def change_service_admin(service_id: int, update: ServiceAdminUpdate, db = Depends(get_db)):
+    cur = db.execute(
+        """
+        UPDATE service_admins
+        SET admin_id = ?
+        WHERE service_id = ? AND role = ?
+        """,
+        (update.admin_id, service_id, update.role),
+    )
 
-        if cur.rowcount == 0:
-            raise HTTPException(404, "Service or role not found")
+    if cur.rowcount == 0:
+        raise HTTPException(404, "Service or role not found")
 
     return {"status": "service admin updated"}
 
 @app.patch("/admins/{admin_id}")
-def update_admin_contact(admin_id: int, update: AdminContactUpdate):
+def update_admin_contact(admin_id: int, update: AdminContactUpdate, db = Depends(get_db)):
     fields = []
     values = []
 
@@ -70,18 +67,17 @@ def update_admin_contact(admin_id: int, update: AdminContactUpdate):
 
     values.append(admin_id)
 
-    with get_db() as db:
-        cur = db.execute(
-            f"""
-            UPDATE admins
-            SET {', '.join(fields)}
-            WHERE rowid = ?
-            """,
-            values,
-        )
+    cur = db.execute(
+        f"""
+        UPDATE admins
+        SET {', '.join(fields)}
+        WHERE id = ?
+        """,
+        values,
+    )
 
-        if cur.rowcount == 0:
-            raise HTTPException(404, "Admin not found")
+    if cur.rowcount == 0:
+        raise HTTPException(404, "Admin not found")
 
     return {"status": "admin contact updated"}
 
