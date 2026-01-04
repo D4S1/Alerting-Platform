@@ -40,6 +40,24 @@ def test_db():
             admin_id INTEGER,
             role TEXT
         );
+
+        CREATE TABLE incidents (
+            id INTEGER PRIMARY KEY,
+            service_id INTEGER,
+            started_at TEXT,
+            ended_at TEXT,
+            status TEXT
+        );
+
+        CREATE TABLE contact_attempts (
+            id INTEGER PRIMARY KEY,
+            incident_id INTEGER,
+            admin_id INTEGER,
+            attempted_at TEXT,
+            channel TEXT,
+            result TEXT,
+            response_at TEXT
+        );
         """
     )
 
@@ -54,7 +72,7 @@ def test_db():
     conn.execute("INSERT INTO service_admins (service_id, admin_id, role) VALUES (1, 2, 'secondary')")
     conn.execute("INSERT INTO service_admins (service_id, admin_id, role) VALUES (2, 3, 'primary')")
     conn.execute("INSERT INTO service_admins (service_id, admin_id, role) VALUES (2, 4, 'secondary')")
-
+    conn.execute("INSERT INTO incidents (service_id, started_at, status) VALUES (1, datetime('now'), 'registered')")
 
     conn.commit()
     conn.close()
