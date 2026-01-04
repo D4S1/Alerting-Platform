@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
 from api.db import get_db
 from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate
+import jwt
+from datetime import datetime
+from notification_module.notifications import JWT_SECRET
 
 app = FastAPI(title="Monitoring API")
 
@@ -80,4 +83,16 @@ def update_admin_contact(admin_id: int, update: AdminContactUpdate, db = Depends
         raise HTTPException(404, "Admin not found")
 
     return {"status": "admin contact updated"}
+
+@app.get("/ack/{token}")
+def acknowledge(token: str, db = Depends(get_db)):
+    payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+
+    db.acknowledge_incident(
+        incident_id=payload["incident_id"],
+        admin_id=payload["admin_id"],
+        response_at=datetime.utcnow()
+    )
+
+    return {"status": "acknowledged"}
 
