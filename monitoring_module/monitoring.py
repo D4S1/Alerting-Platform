@@ -5,6 +5,26 @@ from typing import Deque
 
 
 class IPStatusCollector:
+
+    """
+    Monitors the availability of a specified IP or URL by performing periodic HTTP GET requests.
+    Tracks failures over a sliding time window and triggers an incident if the number of failures
+    exceeds a defined threshold. Incident information is published via a provided queue publisher.
+
+    Attributes:
+        ip (str): IP address or URL to monitor.
+        frequency (int): Interval in seconds between status checks.
+        alerting_window (int): Time window in seconds over which failures are counted.
+        failure_threshold (int): Number of failures within the alerting window that triggers an alert.
+        timeout (float): Timeout in seconds for each HTTP GET request.
+        queue_publisher: An object responsible for publishing incident jobs.
+        failures (Deque[float]): Timestamps of recorded failures within the alerting window.
+
+    Methods:
+        run_once(): Performs a single status check and handles failure recording and incident publishing.
+        run_forever(): Continuously monitors the target IP/URL at the specified frequency.
+    """
+
     def __init__(
         self,
         ip: str,
@@ -24,7 +44,7 @@ class IPStatusCollector:
         """
         self.ip = ip
         self.frequency = frequency
-        self.alerting_window = alerting_window
+        self.alerting_window = alerting_window * frequency
         self.failure_threshold = failure_threshold
         self.timeout = timeout
         self.queue_publisher = queue_publisher
@@ -50,11 +70,10 @@ class IPStatusCollector:
 
     def _cleanup_old_failures(self, now: float):
         """Remove failures outside the alerting_window."""
-        # implement failure cleanup logic
-        pass
+        while self.failures and now - self.failures[0] > self.alerting_window:
+            self.failures.popleft()
 
     def _should_trigger_incident(self) -> bool:
-        # implement incident triggering logic
         return len(self.failures) >= self.failure_threshold
 
     def _publish_incident(self):
