@@ -1,3 +1,7 @@
+import sqlite3
+
+TEST_DB = "database/test_monitoring.db"
+
 def test_add_service(client):
     resp = client.post(
         "/services",
@@ -12,7 +16,25 @@ def test_add_service(client):
     assert resp.status_code == 200
     assert resp.json()["status"] == "service added"
 
-def test_debug_db(client, test_db): 
+    # Check if the record is in the database
+    conn = sqlite3.connect(TEST_DB)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT * FROM services WHERE name = ?",
+        ("new-service",),
+    )
+    row = cur.fetchone()
+    conn.close()
+
+    assert row is not None
+    assert row["IP"] == "8.8.8.8"
+    assert row["frequency_seconds"] == 30
+    assert row["alerting_window_seconds"] == 300
+
+
+def test_debug_db(test_db): 
     import sqlite3
     conn = sqlite3.connect(test_db)
     conn.row_factory = sqlite3.Row 
