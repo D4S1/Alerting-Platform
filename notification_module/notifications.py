@@ -1,12 +1,13 @@
 import time
 import jwt
 from datetime import datetime, timedelta
+from database.db import Database, Admin
+from notification_module.mailer import Mailer
 
 JWT_SECRET = "super-secret"
 JWT_EXP_MINUTES = 15
 ESCALATION_DELAY_SECONDS = 300  # 5 min
 
-# TODO: define db, admin and mailer interfaces
 
 class NotificationEngine:
     """
@@ -22,7 +23,7 @@ class NotificationEngine:
         mailer: Mailer service responsible for sending email notifications.
     """
 
-    def __init__(self, db, mailer):
+    def __init__(self, db: Database, mailer: Mailer):
         """
         :param db: Database access layer.
         :param mailer: Mailer service used to send emails.
@@ -57,7 +58,7 @@ class NotificationEngine:
                 escalation=False
             )
 
-    def _notify_admin(self, incident_id: int, admin, escalation: bool):
+    def _notify_admin(self, incident_id: int, admin: Admin, escalation: bool):
         """
         Generates an acknowledgment token, sends a notification email to the admin,
         records the contact attempt, and schedules escalation if required.
