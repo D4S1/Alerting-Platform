@@ -3,8 +3,10 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
+from database.db import Database
 from api.main import app
-from api import db as db_module
+from api.db import get_database
+
 
 TEST_DB = "database/test_monitoring.db"
 
@@ -86,18 +88,15 @@ def test_db():
         print(f"Exception while cleaning database: {e}")
 
 @pytest.fixture(scope="function")
-def client(test_db):
-    # Dependency override
-    def override_get_db():
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-            conn.commit()
-        finally:
-            conn.close()
+def test_database(test_db):
+    return Database(test_db)
 
-    app.dependency_overrides[db_module.get_db] = override_get_db
+@pytest.fixture(scope="function")
+def client(test_database):
+    def override_get_database():
+        return test_database
+
+    app.dependency_overrides[get_database] = override_get_database
 
     with TestClient(app) as c:
         yield c
