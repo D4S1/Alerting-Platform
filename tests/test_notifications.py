@@ -1,6 +1,29 @@
 import sqlite3
+import jwt
+from datetime import datetime, timedelta
 from conftest import TEST_DB
 from utils import make_token
+
+
+# -----------------------------
+# Test helpers
+# -----------------------------
+
+JWT_SECRET = "super-secret"
+
+def make_token(incident_id=1, admin_id=1, expired=False):
+    payload = {
+        "incident_id": incident_id,
+        "admin_id": admin_id,
+        "exp": datetime.utcnow() - timedelta(minutes=1)
+        if expired
+        else datetime.utcnow() + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+# -----------------------------
+# Tests
+# -----------------------------
 
 def test_acknowledge_incident_success(client):
     token = make_token(incident_id=1, admin_id=1)
