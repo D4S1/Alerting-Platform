@@ -66,7 +66,7 @@ def update_admin_contact(
     return {"status": "admin contact updated"}
 
 
-@app.get("/ack/{token}")
+@app.get("/incidents/ack/{token}")
 def acknowledge(
     token: str,
     db: Database = Depends(get_database),
