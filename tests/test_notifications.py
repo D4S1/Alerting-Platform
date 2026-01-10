@@ -2,14 +2,12 @@ import sqlite3
 import jwt
 from datetime import datetime, timedelta
 from conftest import TEST_DB
-from utils import make_token
+from notification_module.notifications import JWT_SECRET
 
 
 # -----------------------------
 # Test helpers
 # -----------------------------
-
-JWT_SECRET = "super-secret"
 
 def make_token(incident_id=1, admin_id=1, expired=False):
     payload = {
