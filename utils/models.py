@@ -15,8 +15,17 @@ class Service(Base):
     frequency_seconds = Column(Integer, nullable=False)
     alerting_window_npings = Column(Integer, nullable=False)
 
-    incidents = relationship("Incident", back_populates="service")
-    admins = relationship("ServiceAdmin", back_populates="service")
+    # Cascade delete incidents and service_admins when service is deleted
+    incidents = relationship(
+        "Incident",
+        back_populates="service",
+        cascade="all, delete-orphan"
+    )
+    admins = relationship(
+        "ServiceAdmin",
+        back_populates="service",
+        cascade="all, delete-orphan"
+    )
 
 
 class Admin(Base):
@@ -28,7 +37,11 @@ class Admin(Base):
     contact_value = Column(String, nullable=False)
 
     services = relationship("ServiceAdmin", back_populates="admin")
-    contact_attempts = relationship("ContactAttempt", back_populates="admin")
+    contact_attempts = relationship(
+        "ContactAttempt",
+        back_populates="admin",
+        cascade="all, delete-orphan"
+    )
 
 
 class ServiceAdmin(Base):
@@ -73,7 +86,11 @@ class Incident(Base):
     )
 
     service = relationship("Service", back_populates="incidents")
-    contact_attempts = relationship("ContactAttempt", back_populates="incident")
+    contact_attempts = relationship(
+        "ContactAttempt",
+        back_populates="incident",
+        cascade="all, delete-orphan"
+    )
 
 
 class ContactAttempt(Base):

@@ -1,15 +1,26 @@
 import sqlite3
 from contextlib import contextmanager
 
-DB_PATH = "database/monitoring.db"
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 
-@contextmanager
-def get_db(db_path: str = DB_PATH):
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
+DB_PATH = "database/test.db"
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False}  # SQLite-specific
+)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+
+def get_db():
+    """
+    Provides a SQLAlchemy Session for ORM endpoints.
+    Use this with FastAPI Depends(get_db)
+    """
+    db = SessionLocal()
     try:
-        yield conn
-        conn.commit()
+        yield db
     finally:
-        conn.close()
-
+        db.close()
