@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from api.db import get_db
-from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate
+from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate
 from utils.models import Service, Admin, ServiceAdmin, Incident
 
 app = FastAPI(title="Monitoring API")
@@ -50,6 +50,28 @@ def change_service_admin(service_id: int, update: ServiceAdminUpdate, db: Sessio
     db.commit()
     db.refresh(sa)
     return {"status": "service admin updated"}
+
+
+@app.post("/admins/", response_model=AdminCreate)
+def create_admin(admin: AdminCreate, db: Session = Depends(get_db)):
+    # Optional: Check for duplicates
+    existing_admin = db.query(Admin).filter(
+        Admin.contact_type == admin.contact_type,
+        Admin.contact_value == admin.contact_value
+    ).first()
+    if existing_admin:
+        raise HTTPException(status_code=400, detail="Admin already exists")
+
+    # Create new admin
+    new_admin = Admin(
+        name=admin.name,
+        contact_type=admin.contact_type,
+        contact_value=admin.contact_value
+    )
+    db.add(new_admin)
+    db.commit()
+    db.refresh(new_admin)
+    return new_admin
 
 
 @app.patch("/admins/{admin_id}")

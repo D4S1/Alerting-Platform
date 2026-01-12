@@ -9,6 +9,12 @@ class ServiceCreate(BaseModel):
     alerting_window_npings: int
 
 
+class AdminCreate(BaseModel):
+    name: str
+    contact_type: str
+    contact_value: str
+
+
 class AdminContactUpdate(BaseModel):
     contact_type: Optional[str] = None
     contact_value: Optional[str] = None
