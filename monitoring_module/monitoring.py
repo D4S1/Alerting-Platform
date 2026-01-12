@@ -58,8 +58,8 @@ class IPStatusCollector:
                 f"http://{self.ip}",
                 timeout=self.timeout,
             )
-            return response.status_code < 500
-        except requests.RequestException:
+            return response.status_code < 400
+        except requests.RequestException as e:
             return False
 
     def _record_failure(self):
@@ -77,25 +77,36 @@ class IPStatusCollector:
         return len(self.failures) >= self.failure_threshold
 
     def _publish_incident(self):
+        # with internall IP check if incident already exists for self.ip with status == registered/acknowledged
+        # if yes do not publish a new one
+        # if no create a new one api query to add incident
+        # if incident is None:
         job = {
             "type": "CREATE_INCIDENT",
             "service_id": self.ip,
             "started_at": time.time(),
             'status': 'registered',
         }
-        self.queue_publisher.publish(job)
+        self.queue_publisher.publish(job) # query API to create incident
+
+    def _check_existing_incident(self):
+        # Placeholder for checking existing incidents
+        # In a real implementation, this would query a API
+        # get incidents for self.ip with status registered/acknowledged
+        # return incident if exists else None
+        return None
 
     def run_once(self):
         """Perform a single status check."""
         success = self._perform_check()
-
-        if not success:
+        # if success and incident exists for self.ip with status registered/acknowledged, resolve it
+        if success:
+            # Check if an incident exists for this IP
+            existing_incident = self._check_existing_incident()
+            if existing_incident and existing_incident['status'] in ['registered', 'acknowledged']:
+                self._resolve_incident(existing_incident)
+        else:
             self._record_failure()
             if self._should_trigger_incident():
                 self._publish_incident()
 
-    def run_forever(self):
-        """Continuous monitoring loop."""
-        while True:
-            self.run_once()
-            time.sleep(self.frequency)
