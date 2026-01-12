@@ -24,12 +24,14 @@ def generate_services(n: int) -> pd.DataFrame:
     Returns:
         DataFrame containing service definitions.
     """
-    return pd.DataFrame({
+    df = pd.DataFrame({
         "name": [faker.domain_word() for _ in range(n)],
         "IP": [faker.ipv4() for _ in range(n)],
         "frequency_seconds": [random.choice([30, 60, 120, 300]) for _ in range(n)],
         "alerting_window_seconds": [random.choice([300, 600, 900]) for _ in range(n)],
     })
+    df.insert(0, "id", range(1, n + 1))
+    return df
 
 
 def generate_admins(n: int) -> pd.DataFrame:
@@ -59,7 +61,9 @@ def generate_admins(n: int) -> pd.DataFrame:
             "contact_value": contact_value
         })
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    df.insert(0, "id", range(1, n + 1))
+    return df
 
 
 def generate_service_admins(service_ids, admin_ids) -> pd.DataFrame:
@@ -124,7 +128,9 @@ def generate_incidents(n: int, service_ids) -> pd.DataFrame:
             "status": status
         })
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    df.insert(0, "id", range(1, n + 1))
+    return df
 
 
 def generate_contact_attempts(
@@ -145,7 +151,8 @@ def generate_contact_attempts(
     """
     rows = []
 
-    for inc_id, incident in incidents.iterrows():
+    for _, incident in incidents.iterrows():
+        inc_id = incident.id
         role = random.choice(["primary", "secondary"])
 
         primary_admin = admins.iloc[
@@ -218,10 +225,10 @@ def generate_data(num_services: int, num_incidents: int) -> Dict[str, pd.DataFra
     services = generate_services(num_services)
     admins = generate_admins(num_services * 2)
     service_admins = generate_service_admins(
-        services.index.tolist(),
-        admins.index.tolist()
+        services['id'].tolist(),
+        admins['id'].tolist()
     )
-    incidents = generate_incidents(num_incidents, services.index.tolist())
+    incidents = generate_incidents(num_incidents, services['id'].tolist())
     contact_attempts = generate_contact_attempts(
         incidents, service_admins, admins
     )
@@ -255,7 +262,8 @@ def save_dfs_to_sqlite(
                 name=table_name,
                 con=conn,
                 if_exists=if_exists,
-                index=False
+                index=False,
+                dtype={"id": "INTEGER PRIMARY KEY"}
             )
     finally:
         conn.close()
