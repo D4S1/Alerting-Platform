@@ -1,6 +1,6 @@
 from email.message import EmailMessage
 import smtplib
-from notification_module.config import SMTPConfig
+from config import SMTPConfig
 
 
 class Mailer:

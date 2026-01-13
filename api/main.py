@@ -1,10 +1,13 @@
 from fastapi import FastAPI, HTTPException, Depends
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 from api.db import get_db
 from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate, ContactAttemptCreate
 from utils.models import Service, Admin, ServiceAdmin, Incident, ContactAttempt
+from config import JWTConfig
 
 app = FastAPI(title="Monitoring API")
 
@@ -166,3 +169,46 @@ def update_contact_attempt(attempt_id: int, result: str, db: Session = Depends(g
     db.commit()
     db.refresh(attempt)
     return attempt
+
+@app.get("/incidents/ack")
+def acknowledge_incident(token: str, db: Session = Depends(get_db)):
+    # 1. Decode token
+    try:
+        payload = jwt.decode(token, JWTConfig.SECRET, algorithms=["HS256"])
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Token expired")
+    except InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    incident_id = payload["incident_id"]
+    admin_id = payload["admin_id"]
+
+    # 2. Fetch incident
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    # 3. Handle terminal states
+    if incident.status == "resolved":
+        return {"status": "already resolved"}
+
+    if incident.status == "acknowledged":
+        return {"status": "already acknowledged"}
+
+    # 4. Acknowledge incident
+    incident.status = "acknowledged"
+    db.commit()
+
+    # 5. Update contact attempt
+    attempt = db.query(ContactAttempt).filter(
+        ContactAttempt.incident_id == incident_id,
+        ContactAttempt.admin_id == admin_id
+    ).order_by(ContactAttempt.attempted_at.desc()).first()
+
+    if attempt:
+        attempt.result = "acknowledged"
+        attempt.response_at = datetime.now(timezone.utc)
+        db.commit()
+
+    return {"status": "acknowledged"}
+

@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 from database.db import Database, Admin
 from notification_module.mailer import Mailer
 
-JWT_SECRET = "super-secret"
-JWT_EXP_MINUTES = 15
-ESCALATION_DELAY_SECONDS = 300  # 5 min
+from config import JWTConfig
+
+JWT_SECRET = JWTConfig.SECRET
+JWT_EXP_MINUTES = JWTConfig.EXP_MINUTES
+ESCALATION_DELAY_SECONDS = 300  # 5 minutes
 
 
 class NotificationEngine:

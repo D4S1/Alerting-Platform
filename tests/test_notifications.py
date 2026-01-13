@@ -2,8 +2,9 @@ import pytest
 import sqlite3
 import jwt
 from datetime import datetime, timedelta
-from notification_module.notifications import JWT_SECRET
+from config import JWTConfig
 
+JWT_SECRET = JWTConfig.SECRET
 
 # -----------------------------
 # Test helpers
