@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from api.db import get_db
-from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate
-from utils.models import Service, Admin, ServiceAdmin, Incident
+from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate, ContactAttemptCreate
+from utils.models import Service, Admin, ServiceAdmin, Incident, ContactAttempt
 
 app = FastAPI(title="Monitoring API")
 
@@ -53,8 +53,8 @@ def change_service_admin(service_id: int, update: ServiceAdminUpdate, db: Sessio
 
 
 @app.post("/admins/", response_model=AdminCreate)
-def create_admin(admin: AdminCreate, db: Session = Depends(get_db)):
-    # Optional: Check for duplicates
+def add_admin(admin: AdminCreate, db: Session = Depends(get_db)):
+    # Check for duplicates
     existing_admin = db.query(Admin).filter(
         Admin.contact_type == admin.contact_type,
         Admin.contact_value == admin.contact_value
@@ -107,7 +107,7 @@ def list_open_incidents_for_service(service_id: int, db: Session = Depends(get_d
 
 
 @app.post("/services/{service_id}/incidents")
-def create_incident(service_id: int, db: Session = Depends(get_db)):
+def add_incident(service_id: int, db: Session = Depends(get_db)):
     incident = Incident(service_id=service_id)
     db.add(incident)
     db.commit()
@@ -137,3 +137,31 @@ def update_incident_ended_at(incident_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(incident)
     return incident
+
+@app.post("/contact_attempts/")
+def add_contact_attempt(contact_attempt: ContactAttemptCreate, db: Session = Depends(get_db)):
+    new_attempt = ContactAttempt(
+        incident_id=contact_attempt.incident_id,
+        admin_id=contact_attempt.admin_id,
+        attempted_at=contact_attempt.attempted_at,
+        channel=contact_attempt.channel,
+        result=contact_attempt.result,
+        response_at=contact_attempt.response_at
+    )
+    db.add(new_attempt)
+    db.commit()
+    db.refresh(new_attempt)
+
+    return {"status": "contact attempt added", "contact_attempt_id": new_attempt.id}
+
+@app.patch("/contact_attempts/{attempt_id}")
+def update_contact_attempt(attempt_id: int, result: str, response_at: datetime, db: Session = Depends(get_db)):
+    attempt = db.query(ContactAttempt).filter(ContactAttempt.id == attempt_id).first()
+    if not attempt:
+        raise HTTPException(404, "Contact attempt not found")
+
+    attempt.result = result
+    attempt.response_at = response_at
+    db.commit()
+    db.refresh(attempt)
+    return attempt
