@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from database.db import Database
 from api.main import app
 from api import db as db_module
 from utils.models import Base, Service, Admin, ServiceAdmin
@@ -68,3 +67,9 @@ def client(db_session):
         finally:
             pass
 
+    app.dependency_overrides[db_module.get_db] = override_get_db
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
