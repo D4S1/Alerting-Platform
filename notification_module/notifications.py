@@ -111,7 +111,7 @@ class NotificationEngine:
 
     def _schedule_escalation(self, incident_id: int):
         """
-         Waits for a predefined delay, checks whether the incident was acknowledged,
+        Waits for a predefined delay, checks whether the incident was acknowledged,
         and if not, notifies secondary administrators.
         """
         time.sleep(ESCALATION_DELAY_SECONDS)
