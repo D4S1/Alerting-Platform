@@ -143,10 +143,10 @@ def add_contact_attempt(contact_attempt: ContactAttemptCreate, db: Session = Dep
     new_attempt = ContactAttempt(
         incident_id=contact_attempt.incident_id,
         admin_id=contact_attempt.admin_id,
-        attempted_at=contact_attempt.attempted_at,
         channel=contact_attempt.channel,
-        result=contact_attempt.result,
-        response_at=contact_attempt.response_at
+        attempted_at=datetime.now(timezone.utc),
+        result=None,
+        response_at=None
     )
     db.add(new_attempt)
     db.commit()
@@ -155,13 +155,13 @@ def add_contact_attempt(contact_attempt: ContactAttemptCreate, db: Session = Dep
     return {"status": "contact attempt added", "contact_attempt_id": new_attempt.id}
 
 @app.patch("/contact_attempts/{attempt_id}")
-def update_contact_attempt(attempt_id: int, result: str, response_at: datetime, db: Session = Depends(get_db)):
+def update_contact_attempt(attempt_id: int, result: str, db: Session = Depends(get_db)):
     attempt = db.query(ContactAttempt).filter(ContactAttempt.id == attempt_id).first()
     if not attempt:
         raise HTTPException(404, "Contact attempt not found")
 
     attempt.result = result
-    attempt.response_at = response_at
+    attempt.response_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(attempt)
     return attempt
