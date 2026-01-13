@@ -172,7 +172,7 @@ def update_contact_attempt(attempt_id: int, result: str, db: Session = Depends(g
 
 @app.get("/incidents/ack")
 def acknowledge_incident(token: str, db: Session = Depends(get_db)):
-    # 1. Decode token
+    # Decode token
     try:
         payload = jwt.decode(token, JWTConfig.SECRET, algorithms=["HS256"])
     except ExpiredSignatureError:
@@ -183,23 +183,23 @@ def acknowledge_incident(token: str, db: Session = Depends(get_db)):
     incident_id = payload["incident_id"]
     admin_id = payload["admin_id"]
 
-    # 2. Fetch incident
+    # Fetch incident
     incident = db.query(Incident).filter(Incident.id == incident_id).first()
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
 
-    # 3. Handle terminal states
+    # Handle terminal states
     if incident.status == "resolved":
         return {"status": "already resolved"}
 
     if incident.status == "acknowledged":
         return {"status": "already acknowledged"}
 
-    # 4. Acknowledge incident
+    # Acknowledge incident
     incident.status = "acknowledged"
     db.commit()
 
-    # 5. Update contact attempt
+    # Update contact attempt
     attempt = db.query(ContactAttempt).filter(
         ContactAttempt.incident_id == incident_id,
         ContactAttempt.admin_id == admin_id

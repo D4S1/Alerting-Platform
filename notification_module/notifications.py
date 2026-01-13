@@ -1,6 +1,6 @@
 import time
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from database.db import Database, Admin
 from notification_module.mailer import Mailer
 
@@ -93,7 +93,7 @@ class NotificationEngine:
             admin_id=admin.id,
             channel="email",
             result="sent" if success else "failed",
-            attempted_at=datetime.utcnow()
+            attempted_at=datetime.now(timezone.utc)
         )
 
         if not escalation:
@@ -107,7 +107,7 @@ class NotificationEngine:
         payload = {
             "incident_id": incident_id,
             "admin_id": admin_id,
-            "exp": datetime.utcnow() + timedelta(minutes=JWT_EXP_MINUTES),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=JWT_EXP_MINUTES),
         }
         return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 

@@ -1,8 +1,9 @@
 import pytest
-import sqlite3
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from config import JWTConfig
+from utils.models import Incident, ContactAttempt
+
 
 JWT_SECRET = JWTConfig.SECRET
 
@@ -14,9 +15,9 @@ def make_token(incident_id=1, admin_id=1, expired=False):
     payload = {
         "incident_id": incident_id,
         "admin_id": admin_id,
-        "exp": datetime.utcnow() - timedelta(minutes=1)
+        "exp": datetime.now(timezone.utc) - timedelta(minutes=1)
         if expired
-        else datetime.utcnow() + timedelta(minutes=10),
+        else datetime.now(timezone.utc) + timedelta(minutes=10),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
@@ -24,7 +25,7 @@ def make_token(incident_id=1, admin_id=1, expired=False):
 # Tests
 # -----------------------------
 
-def test_acknowledge_incident_success(client, test_db):
+def test_acknowledge_incident_success(client, db_session):
     token = make_token(incident_id=1, admin_id=1)
 
     response = client.get(f"/incidents/ack?token={token}")
@@ -32,13 +33,13 @@ def test_acknowledge_incident_success(client, test_db):
     assert response.status_code == 200
     assert response.json()["status"] == "acknowledged"
 
-    # sprawdzenie DB
-    with sqlite3.connect(test_db) as conn:
-        status = conn.execute(
-            "SELECT status FROM incidents WHERE id = 1"
-        ).fetchone()[0]
+    incident = (
+        db_session.query(Incident)
+        .filter_by(id=1)
+        .first()
+    )
 
-        assert status == "acknowledged"
+    assert incident.status == "acknowledged"
 
 def test_acknowledge_idempotent(client):
     token = make_token(incident_id=1, admin_id=1)
@@ -49,12 +50,14 @@ def test_acknowledge_idempotent(client):
     assert r1.json()["status"] == "acknowledged"
     assert r2.json()["status"] == "already acknowledged"
 
-def test_acknowledge_resolved_incident(client, test_db):
-    with sqlite3.connect(test_db) as conn:
-        conn.execute(
-            "UPDATE incidents SET status = 'resolved' WHERE id = 1"
-        )
-        conn.commit()
+def test_acknowledge_resolved_incident(client, db_session):
+    incident = (
+        db_session.query(Incident)
+        .filter_by(id=1)
+        .first()
+    )
+    incident.status = "resolved"
+    db_session.commit()
 
     token = make_token(incident_id=1, admin_id=1)
     response = client.get(f"/incidents/ack?token={token}")
@@ -75,18 +78,17 @@ def test_acknowledge_invalid_token(client):
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid token"
 
-def test_contact_attempt_updated_on_ack(client, test_db):
+def test_contact_attempt_updated_on_ack(client, db_session):
     token = make_token(incident_id=1, admin_id=1)
 
     client.get(f"/incidents/ack?token={token}")
 
-    with sqlite3.connect(test_db) as conn:
-        row = conn.execute("""
-            SELECT result, response_at
-            FROM contact_attempts
-            WHERE incident_id = 1 AND admin_id = 1
-        """).fetchone()
+    attempt = (
+        db_session.query(ContactAttempt)
+        .filter_by(incident_id=1, admin_id=1)
+        .first()
+    )
 
-        assert row is not None
-        assert row[0] == "acknowledged"
-        assert row[1] is not None
+    assert attempt is not None
+    assert attempt.result == "acknowledged"
+    assert attempt.response_at is not None
