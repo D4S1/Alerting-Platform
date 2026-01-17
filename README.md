@@ -1,7 +1,7 @@
 # Alerting-Platform
 Alerting platform that monitors HTTP services, sends email notifications to administrators, escalates alerts automatically, and maintains full audit logging. The platform is simple to deploy on Google Cloud, testable locally.
 
-### Dummy database setup
+## Dummy database setup
 
 ```
 python utils/dummy_db.py \     
@@ -11,3 +11,52 @@ python utils/dummy_db.py \
 ```
 
 FOr viewing recommend `SQLite Viewer` extention in Visual Studio Code
+
+
+## How to run API
+
+```
+uvicorn api.main:app --reload
+```
+
+### Service enpoints
+
+Creates new service
+```
+curl -X POST "http://localhost:8000/services" \
+-H "Content-Type: application/json" \
+-d '{
+  "name": "<name>",
+  "IP": "<url>",
+  "frequency_seconds": 5,
+  "alerting_window_npings": 10
+}'
+```
+
+Deletes the service
+```
+curl -X DELETE "http://localhost:8000/services/1"
+```
+
+### Incident endpoints
+
+Creates new incident for service id=1
+```
+curl -X POST "http://localhost:8000/services/<service_id>/incidents"
+```
+List all incidents for given service
+```
+curl -X GET "http://localhost:8000/services/<service_id>/incidents"
+```
+List open incidents for given service
+```
+curl -X GET "http://localhost:8000/services/<service_id>/incidents/open" 
+```
+Changes the status
+```
+curl -X PATCH "http://localhost:8000/incidents/<incident_id>/status?status=<status>" 
+```
+Closes the incident (sets ended_at to current time)
+```
+curl -X PATCH "http://localhost:8000/incidents/<incident_id>/resolve" 
+```
