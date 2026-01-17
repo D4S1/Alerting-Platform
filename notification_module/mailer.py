@@ -13,7 +13,10 @@ class Mailer:
             msg.set_content(body)
 
             with smtplib.SMTP(SMTPConfig.HOST, SMTPConfig.PORT) as server:
+                server.set_debuglevel(1)
+                server.ehlo()
                 server.starttls()
+                server.ehlo()
                 server.login(
                     SMTPConfig.USERNAME,
                     SMTPConfig.PASSWORD

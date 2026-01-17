@@ -69,12 +69,14 @@ class NotificationEngine:
             incident_id=incident_id,
             admin_id=admin.id
         )
+        service_name = self.db.get_service_by_incident(incident_id)
+        service_str = " " + service_name if service_name else ""
 
         link = f"https://monitoring.local/ack/{token}"
 
         subject = "Incident detected"
         body = f"""
-        Service is DOWN.
+        Service{service_str} is DOWN.
 
         Click to acknowledge:
         {link}

@@ -3,9 +3,8 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from config import JWTConfig
 from utils.models import Incident, ContactAttempt
+from notification_module.mailer import Mailer
 
-
-JWT_SECRET = JWTConfig.SECRET
 
 # -----------------------------
 # Test helpers
@@ -19,7 +18,13 @@ def make_token(incident_id=1, admin_id=1, expired=False):
         if expired
         else datetime.now(timezone.utc) + timedelta(minutes=10),
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    return jwt.encode(payload, JWTConfig.SECRET, algorithm="HS256")
+
+def mailer_setup(email="aniaszymik02@gmail.com", subject="Test", body="This is a test email."):
+    mock_mailer = Mailer()
+    mock_mailer.send(email, subject, body)
+    return mock_mailer
+
 
 # -----------------------------
 # Tests

@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List
+from typing import List, Optional
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -89,6 +89,27 @@ class Database:
             ).fetchall()
 
         return [Admin(*row) for row in rows]
+    
+    def get_service_by_incident(self, incident_id: int)-> Optional[str]:
+        """
+        Fetch the service name and IP for a given incident.
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT s.name
+                FROM incidents i
+                JOIN services s ON s.id = i.service_id
+                WHERE i.id = ?
+                """,
+                (incident_id,)
+            ).fetchone()
+
+        if not row:
+            return None
+
+        return row["name"]
+
 
     def insert_contact_attempt(
         self,
