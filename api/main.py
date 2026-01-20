@@ -212,3 +212,34 @@ def acknowledge_incident(token: str, db: Session = Depends(get_db)):
 
     return {"status": "acknowledged"}
 
+@app.get("/incidents/{incident_id}")
+def get_incident(incident_id: int, db: Session = Depends(get_db)):
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(404, "Incident not found")
+    return incident
+
+@app.get("/incidents/{incident_id}/admins")
+def get_admins_by_incident(incident_id: int, role: str | None = None, db: Session = Depends(get_db)):
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(404, "Incident not found")
+    q = (
+        db.query(Admin)
+        .join(ServiceAdmin, ServiceAdmin.admin_id == Admin.id)
+        .filter(ServiceAdmin.service_id == incident.service_id)
+    )
+    if role:
+        q = q.filter(ServiceAdmin.role == role)
+    return q.all()
+
+@app.get("/incidents/{incident_id}/notified-admins")
+def get_notified_admins(incident_id: int, db: Session = Depends(get_db)):
+    admins = (
+        db.query(Admin)
+        .join(ContactAttempt, ContactAttempt.admin_id == Admin.id)
+        .filter(ContactAttempt.incident_id == incident_id)
+        .distinct()
+        .all()
+    )
+    return admins

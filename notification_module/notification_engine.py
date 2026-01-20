@@ -1,10 +1,11 @@
 import time
 import jwt
 from datetime import datetime, timedelta, timezone
-from database.db import Database, Admin
-from notification_module.mailer import Mailer
 
+from api_client import NotificationApiClient
 from config import JWTConfig
+from notification_module.mailer import Mailer
+from utils.models import Admin
 
 JWT_SECRET = JWTConfig.SECRET
 JWT_EXP_MINUTES = JWTConfig.EXP_MINUTES
@@ -25,12 +26,12 @@ class NotificationEngine:
         mailer: Mailer service responsible for sending email notifications.
     """
 
-    def __init__(self, db: Database, mailer: Mailer):
+    def __init__(self, api: NotificationApiClient, mailer: Mailer):
         """
         :param db: Database access layer.
         :param mailer: Mailer service used to send emails.
         """
-        self.db = db
+        self.api = api
         self.mailer = mailer
 
     def handle_event(self, event: dict):
@@ -47,18 +48,13 @@ class NotificationEngine:
         Notifies primary administrators associated with the affected service
         of the newly created incident.
         """
-        incident = self.db.get_incident(incident_id)
-        primary_admins = self.db.get_admins(
-            incident.service_id,
+        primary_admins = self.api.get_admins_by_incident(
+            incident_id,
             role="primary"
         )
 
         for admin in primary_admins:
-            self._notify_admin(
-                incident_id,
-                admin,
-                escalation=False
-            )
+            self._notify_admin(incident_id, admin, escalation=False)
 
     def _notify_admin(self, incident_id: int, admin: Admin, escalation: bool):
         """
@@ -69,34 +65,24 @@ class NotificationEngine:
             incident_id=incident_id,
             admin_id=admin.id
         )
-        service_name = self.db.get_service_by_incident(incident_id)
-        service_str = " " + service_name if service_name else ""
+
+        service_name = self.api.get_service_name(incident_id)
+        service_str = f" {service_name}" if service_name else ""
 
         link = f"https://monitoring.local/ack/{token}"
 
-        subject = "Incident detected"
-        body = f"""
-        Service{service_str} is DOWN.
-
-        Click to acknowledge:
-        {link}
-
-        This link expires in {JWT_EXP_MINUTES} minutes.
-        """
-
         success = self.mailer.send(
             to=admin.contact_value,
-            subject=subject,
-            body=body
+            subject="Incident detected",
+            body=f"Service{service_str} is DOWN.\n\n{link}"
         )
 
-        self.db.insert_contact_attempt(
-            incident_id=incident_id,
-            admin_id=admin.id,
-            channel="email",
-            result="sent" if success else "failed",
-            attempted_at=datetime.now(timezone.utc)
-        )
+        self.api.add_contact_attempt({
+            "incident_id": incident_id,
+            "admin_id": admin.id,
+            "channel": "email",
+            "result": "sent" if success else "failed"
+        })
 
         if not escalation:
             self._schedule_escalation(incident_id)
@@ -112,7 +98,7 @@ class NotificationEngine:
             "exp": datetime.now(timezone.utc) + timedelta(minutes=JWT_EXP_MINUTES),
         }
         return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-
+    
     def _schedule_escalation(self, incident_id: int):
         """
         Waits for a predefined delay, checks whether the incident was acknowledged,
@@ -121,20 +107,31 @@ class NotificationEngine:
         time.sleep(ESCALATION_DELAY_SECONDS)
         # In production: replace sleep with delayed job / scheduler / Celery task
 
-        if self.db.is_incident_acknowledged(incident_id):
+        if self.api.is_acknowledged(incident_id):
             return
 
-        secondary_admins = self.db.get_admins_by_incident(
+        secondary_admins = self.api.get_admins_by_incident(
             incident_id,
             role="secondary"
         )
 
         for admin in secondary_admins:
-            self._notify_admin(
-                incident_id,
-                admin,
-                escalation=True
+            self._notify_admin(incident_id, admin, escalation=True)
+
+    def _handle_incident_resolved(self, incident_id: int):
+        """
+        Sends a resolution notification to all administrators
+        who were previously notified about the incident.
+        """
+        admins = self.api.get_notified_admins(incident_id)
+
+        for admin in admins:
+            self.mailer.send(
+                to=admin.contact_value,
+                subject="Incident resolved",
+                body="The service is back online."
             )
+
 
     def _handle_incident_resolved(self, incident_id: int):
         """
