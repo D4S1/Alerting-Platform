@@ -1,72 +1,42 @@
-import sqlite3
+from utils.models import Service, Admin, ServiceAdmin
 
-TEST_DB = "database/test_monitoring.db"
-
-def test_add_service(client):
+def test_add_service(client, db_session):
     resp = client.post(
         "/services",
         json={
             "name": "new-service",
             "IP": "8.8.8.8",
             "frequency_seconds": 30,
-            "alerting_window_seconds": 300,
+            "alerting_window_npings": 10,
         },
     )
 
     assert resp.status_code == 200
     assert resp.json()["status"] == "service added"
 
-    # Check if the record is in the database
-    conn = sqlite3.connect(TEST_DB)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-
-    cur.execute(
-        "SELECT * FROM services WHERE name = ?",
-        ("new-service",),
-    )
-    row = cur.fetchone()
-    conn.close()
-
-    assert row is not None
-    assert row["IP"] == "8.8.8.8"
-    assert row["frequency_seconds"] == 30
-    assert row["alerting_window_seconds"] == 300
+    # Verify via SQLAlchemy session
+    service = db_session.query(Service).filter_by(name="new-service").first()
+    assert service is not None
+    assert service.IP == "8.8.8.8"
+    assert service.frequency_seconds == 30
+    assert service.alerting_window_npings == 10
 
 
-def test_debug_db(test_db): 
-    import sqlite3
-    conn = sqlite3.connect(test_db)
-    conn.row_factory = sqlite3.Row 
-    
-    with conn:
-        cur = conn.execute("SELECT * FROM services")
-        rows = [dict(row) for row in cur.fetchall()]
-        print("Current services in DB (via direct access):", rows)
-
-        cur = conn.execute("SELECT * FROM service_admins")
-        rows = [dict(row) for row in cur.fetchall()]
-        print("Current admins in DB (via direct access):", rows)
-        
-
-def test_delete_service(client, test_db):
-    import sqlite3
-    conn = sqlite3.connect(test_db)
-    conn.row_factory = sqlite3.Row 
-    
-    with conn:
-        cur = conn.execute("SELECT * FROM services")
-        rows = [dict(row) for row in cur.fetchall()]
-        print("Current services in DB (via direct access):", rows)
-
-        cur = conn.execute("SELECT * FROM service_admins")
-        rows = [dict(row) for row in cur.fetchall()]
-        print("Current admins in DB (via direct access):", rows)
+def test_delete_service(client, db_session):
+    # Delete service via endpoint
     resp = client.delete("/services/2")
     assert resp.status_code == 200
     assert resp.json()["status"] == "service deleted"
 
-def test_change_service_admin(client):
+    # Verify deletion in DB
+    service = db_session.query(Service).filter_by(id=2).first()
+    assert service is None
+
+    service_admins = db_session.query(ServiceAdmin).filter_by(service_id=2).all()
+    assert len(service_admins) == 0
+
+
+def test_change_service_admin(client, db_session):
     resp = client.put(
         "/services/1/admin",
         json={
@@ -78,7 +48,11 @@ def test_change_service_admin(client):
     assert resp.status_code == 200
     assert resp.json()["status"] == "service admin updated"
 
-def test_update_admin_contact(client):
+    sa = db_session.query(ServiceAdmin).filter_by(service_id=1, role="primary").first()
+    assert sa.admin_id == 1
+
+
+def test_update_admin_contact(client, db_session):
     resp = client.patch(
         "/admins/1",
         json={
@@ -88,6 +62,10 @@ def test_update_admin_contact(client):
 
     assert resp.status_code == 200
     assert resp.json()["status"] == "admin contact updated"
+
+    admin = db_session.query(Admin).filter_by(id=1).first()
+    assert admin.contact_value == "alice_new@test.com"
+
 
 def test_update_missing_admin(client):
     resp = client.patch(
