@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from datetime import datetime, timezone, timedelta
 
 from api.main import app
 from api import db as db_module
@@ -37,8 +38,22 @@ def db_session(tmp_path):
             Admin(name="John", contact_type="email", contact_value="john@test.com"),
         ])
         session.add_all([
-            Service(name="svc1", IP="1.1.1.1", frequency_seconds=60, alerting_window_npings=300),
-            Service(name="svc2", IP="1.1.1.2", frequency_seconds=20, alerting_window_npings=200),
+            Service(
+                name="svc1",
+                IP="1.1.1.1",
+                frequency_seconds=1,          # very low for fast tests
+                alerting_window_npings=3,     # threshold
+                failure_threshold=2,          # new field
+                next_at=datetime.now() + timedelta(minutes=5)
+            ),
+            Service(
+                name="svc2",
+                IP="1.1.1.2",
+                frequency_seconds=1,
+                alerting_window_npings=2,
+                failure_threshold=1,
+                next_at=datetime.now() + timedelta(minutes=5)
+            ),
         ])
         session.commit()
         session.add_all([

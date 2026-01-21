@@ -7,6 +7,7 @@ class ServiceCreate(BaseModel):
     IP: str
     frequency_seconds: int
     alerting_window_npings: int
+    threshold: int
 
 
 class AdminCreate(BaseModel):
