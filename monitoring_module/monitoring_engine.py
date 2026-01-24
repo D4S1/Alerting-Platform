@@ -23,7 +23,7 @@ class MonitoringEngine:
         while True:
             try:
                 services = await self.fetch_due_services()
-
+                print(services)
                 tasks = [
                     IPStatusCollector(
                         service=s,
@@ -37,14 +37,14 @@ class MonitoringEngine:
                     await asyncio.gather(*tasks)
 
             except Exception as e:
-                print("Monitoring loop error:", e)
+                print("Monitoring loop error:", e) #faile
 
             await asyncio.sleep(POLL_INTERVAL)
 
 
 if __name__ == "__main__":
-    api_base_url = os.environ["API_BASE_URL"]      # http://api:8080
-    pubsub_topic = os.environ["PUBSUB_TOPIC"]     # projects/x/topics/incidents
+    api_base_url = 'http://127.0.0.1:8000' #os.environ["API_BASE_URL"]      # http://api:8080
+    pubsub_topic = 'projects/x/topics/incidents' #os.environ["PUBSUB_TOPIC"]     # projects/x/topics/incidents
 
     engine = MonitoringEngine(api_base_url, pubsub_topic)
     asyncio.run(engine.run())

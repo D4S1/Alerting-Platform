@@ -11,7 +11,7 @@ class IPStatusCollector:
         self.service = service
         self.api_base_url = api_base_url.rstrip("/")
         self.pubsub_topic = pubsub_topic
-        self.publisher = publisher or pubsub_v1.PublisherClient()
+        self.publisher = None # publisher or pubsub_v1.PublisherClient()
 
         self.alerting_window_seconds = (
             self.service["alerting_window_npings"]
@@ -39,7 +39,7 @@ class IPStatusCollector:
     async def _perform_check(self) -> bool:
         try:
             async with httpx.AsyncClient(timeout=5) as client:
-                r = await client.get(f"http://{self.service['IP']}")
+                r = await client.get(f"{self.service['IP']}")
                 return r.status_code < 400
         except Exception:
             return False
@@ -56,8 +56,8 @@ class IPStatusCollector:
         params = {"window_seconds": self.alerting_window_seconds}
         async with httpx.AsyncClient() as client:
             r = await client.get(url, params=params)
-            failures = await r.json()
-            return len(failures) >= self.service["alerting_window_npings"]
+            failures = r.json()
+            return len(failures) >= self.service["failure_threshold"]
 
     # ------------------ Incidents (API) ------------------
 
@@ -65,21 +65,21 @@ class IPStatusCollector:
         url = f"{self.api_base_url}/services/{self.service['id']}/incidents/open"
         async with httpx.AsyncClient() as client:
             r = await client.get(url)
-            incidents = await r.json()
+            incidents = r.json()
             return incidents[0] if incidents else None
 
     async def _create_incident(self):
         url = f"{self.api_base_url}/services/{self.service['id']}/incidents"
         async with httpx.AsyncClient() as client:
             r = await client.post(url)
-            return await r.json()
+            return r.json()
 
     async def _resolve_incident(self, incident_id: int):
         # Resolve via API
         url = f"{self.api_base_url}/incidents/{incident_id}/resolve"
         async with httpx.AsyncClient() as client:
             r = await client.patch(url)
-            resolved_incident = await r.json()
+            resolved_incident = r.json()
 
         # Send Pub/Sub notification
         message = {

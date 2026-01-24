@@ -15,11 +15,11 @@ class Service(Base):
     IP = Column(String, nullable=False)
     frequency_seconds = Column(Integer, nullable=False)
     alerting_window_npings = Column(Integer, nullable=False)
-    threshold = Column(Integer, nullable=False, default=3)
+    failure_threshold = Column(Integer, nullable=False, default=3)
     next_at = Column(
         DateTime,
         nullable=False,
-        default=func.now() + timedelta(minutes=10),
+        default=func.now() + timedelta(seconds=60),
     )
 
     # Cascade delete incidents and service_admins when service is deleted

@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
 from api.db import get_db
-from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate
+from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate, ServiceOut
 from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure
 
 app = FastAPI(title="Monitoring API")
@@ -15,7 +15,9 @@ def add_service(service: ServiceCreate, db: Session = Depends(get_db)):
         name=service.name,
         IP=service.IP,
         frequency_seconds=service.frequency_seconds,
-        alerting_window_npings=service.alerting_window_npings
+        alerting_window_npings=service.alerting_window_npings,
+        failure_threshold=service.failure_threshold,
+        next_at=datetime.now(timezone.utc).replace(microsecond=0) + timedelta(minutes=1)
     )
     db.add(new_service)
     db.commit()
@@ -23,9 +25,9 @@ def add_service(service: ServiceCreate, db: Session = Depends(get_db)):
     return {"status": "service added", "service_id": new_service.id}
 
 
-@app.get("/services/due")
+@app.get("/services/due", response_model=list[ServiceOut])
 def get_due_services(db: Session = Depends(get_db)):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(microsecond=0)
 
     services = (
         db.query(Service)

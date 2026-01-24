@@ -7,7 +7,19 @@ class ServiceCreate(BaseModel):
     IP: str
     frequency_seconds: int
     alerting_window_npings: int
-    threshold: int
+    failure_threshold: int
+
+
+class ServiceOut(BaseModel):
+    id: int
+    name: str
+    IP: str
+    frequency_seconds: int
+    alerting_window_npings: int
+    failure_threshold: int
+
+    class Config:
+        from_attributes = True
 
 
 class AdminCreate(BaseModel):
