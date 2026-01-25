@@ -105,22 +105,24 @@
                                         <thead class="table-dark">
                                             <tr>
                                                 <th class="ps-4">ID</th>
-                                                <th>Status</th>
                                                 <th>Started</th>
-                                                <th class="pe-4">Resolved</th>
+                                                <th>Ended</th>
+                                                <th class="pe-4">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for inc in service.incidents %}
                                             <tr class="align-middle">
                                                 <td class="ps-4 text-muted">#{{ inc.id }}</td>
+                                                <td>{{ inc.started_at | datetimeformat}}</td>
+                                                <td>{{ inc.ended_at | datetimeformat}}</td>
                                                 <td>
-                                                    <span class="badge {{ 'bg-danger' if inc.status == 'registered' else 'bg-success' }} px-3 py-2">
+                                                    <span class="badge {{ 'bg-danger' if inc.status == 'registered' 
+                                                                        else 'bg-warning text-dark' if inc.status == 'acknowledged' 
+                                                                        else 'bg-success' }} px-3 py-2">
                                                         {{ inc.status|upper }}
                                                     </span>
                                                 </td>
-                                                <td>{{ inc.created_at }}</td>
-                                                <td class="pe-4 text-muted small">{{ inc.ended_at or 'Ongoing' }}</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>

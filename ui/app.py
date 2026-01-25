@@ -1,9 +1,27 @@
 import os
 import requests
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 
 app = Flask(__name__)
 app.secret_key = 'dev_secret_key'  # Change for production
+
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value):
+    if not value:
+        return "-"
+    
+    if isinstance(value, str):
+        try:
+            # Handle the ISO string from your API
+            value = datetime.fromisoformat(value.replace('Z', ''))
+        except ValueError:
+            return value
+            
+    # %d=Day, %b=Short Month, %Y=Year, %H:%M:%S=Time
+    return value.strftime('%d %b %Y %H:%M:%S')
+
 
 # Configuration
 API_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")

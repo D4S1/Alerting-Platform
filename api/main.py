@@ -236,6 +236,7 @@ def update_incident_ended_at(incident_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Incident not found")
 
     incident.ended_at = datetime.now(timezone.utc)
+    incident.status = "resolved"
     db.commit()
     db.refresh(incident)
     return incident
