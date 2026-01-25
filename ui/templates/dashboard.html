@@ -1,0 +1,147 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm bg-dark text-white">
+            <div class="card-body d-flex justify-content-between align-items-center p-4">
+                <div>
+                    <h4 class="mb-0">{{ session.user_name }}</h4>
+                    <small class="text-secondary">Administrator</small>
+                </div>
+                <div>
+                    <a href="/service/add" class="btn btn-primary btn-sm me-2">+ Add Service</a>
+                    <a href="/profile" class="btn btn-outline-light btn-sm">Settings</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h5 class="mb-3">Managed Services</h5>
+        {% if services %}
+            <div class="accordion shadow-sm" id="serviceAccordion">
+                {% for service in services %}
+                <div class="accordion-item border-bottom">
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-white">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">{{ service.name }}</h6>
+                            <code class="small text-muted">{{ service.IP }}</code>
+                        </div>
+                        
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-info" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#details-{{ service.id }}">
+                                Details
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#incidents-{{ service.id }}">
+                                Incidents ({{ service.incidents|length }})
+                            </button>
+
+                            <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn btn-sm btn-outline-secondary">
+                                Edit
+                            </a>
+
+                            <form action="{{ url_for('delete_service', service_id=service.id) }}" method="POST" 
+                                style="display:inline;" onsubmit="return confirm('Delete this service?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="details-{{ service.id }}" class="collapse">
+                        <div class="card-body bg-light border-top border-info p-5">
+                            <div class="row text-center pb-4 mb-4 border-bottom">
+                                <div class="col-md-4 border-end">
+                                    <small class="text-muted d-block text-uppercase fw-bold mb-2">Frequency</small>
+                                    <span class="h5">{{ service.frequency_seconds }}s</span>
+                                </div>
+                                <div class="col-md-4 border-end">
+                                    <small class="text-muted d-block text-uppercase fw-bold mb-2">Alerting Window</small>
+                                    <span class="h5">{{ service.alerting_window_npings }} pings</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block text-uppercase fw-bold mb-2">Failure Threshold</small>
+                                    <span class="h5 text-danger">{{ service.failure_threshold }}</span>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 border-end">
+                                    <p class="mb-2 fw-bold small text-primary text-uppercase">Primary Admin</p>
+                                    <div class="ps-3 py-3 bg-white rounded border-start border-4 border-primary shadow-sm">
+                                        <div class="fw-bold">{{ service.primary.name if service.primary else 'Not Assigned' }}</div>
+                                        <div class="small text-muted">{{ service.primary.contact_value if service.primary else '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-2 fw-bold small text-secondary text-uppercase">Secondary Admin</p>
+                                    <div class="ps-3 py-3 bg-white rounded border-start border-4 border-secondary shadow-sm">
+                                        <div class="fw-bold">{{ service.secondary.name if service.secondary else 'Not Assigned' }}</div>
+                                        <div class="small text-muted">{{ service.secondary.contact_value if service.secondary else '-' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="incidents-{{ service.id }}" class="collapse">
+                        <div class="card-body bg-light border-top border-primary p-5">
+                            <h6 class="mb-4 d-flex align-items-center">
+                                <span class="badge bg-primary me-2">{{ service.incidents|length }}</span>
+                                Incident History
+                            </h6>
+                            {% if service.incidents %}
+                                <div class="table-responsive shadow-sm rounded">
+                                    <table class="table table-hover bg-white mb-0">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th class="ps-4">ID</th>
+                                                <th>Status</th>
+                                                <th>Started</th>
+                                                <th class="pe-4">Resolved</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for inc in service.incidents %}
+                                            <tr class="align-middle">
+                                                <td class="ps-4 text-muted">#{{ inc.id }}</td>
+                                                <td>
+                                                    <span class="badge {{ 'bg-danger' if inc.status == 'registered' else 'bg-success' }} px-3 py-2">
+                                                        {{ inc.status|upper }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ inc.created_at }}</td>
+                                                <td class="pe-4 text-muted small">{{ inc.ended_at or 'Ongoing' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="p-5 bg-white rounded border text-center">
+                                    <i class="text-muted small">No incidents recorded for this service.</i>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5 bg-white rounded shadow-sm border">
+                <p class="text-muted">No services found for your account.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
