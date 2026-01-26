@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException, Depends
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from api.db import get_db
-from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate, ContactAttemptCreate
-from utils.models import Service, Admin, ServiceAdmin, Incident, ContactAttempt
+from api.schemas import ServiceCreate, AdminContactUpdate, ServiceAdminUpdate, AdminCreate, ServiceOut
+from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure
 from config import JWTConfig
 
 app = FastAPI(title="Monitoring API")
@@ -18,13 +18,31 @@ def add_service(service: ServiceCreate, db: Session = Depends(get_db)):
         name=service.name,
         IP=service.IP,
         frequency_seconds=service.frequency_seconds,
-        alerting_window_npings=service.alerting_window_npings
+        alerting_window_npings=service.alerting_window_npings,
+        failure_threshold=service.failure_threshold,
+        next_at=datetime.now(timezone.utc).replace(microsecond=0) + timedelta(minutes=1)
     )
     db.add(new_service)
     db.commit()
     db.refresh(new_service)
     return {"status": "service added", "service_id": new_service.id}
 
+
+@app.get("/services/due", response_model=list[ServiceOut])
+def get_due_services(db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+
+    services = (
+        db.query(Service)
+        .filter(Service.next_at <= now)
+        .with_for_update()
+        .all()
+    )
+    for svc in services:
+        svc.next_at = now + timedelta(seconds=svc.frequency_seconds)
+
+    db.commit()
+    return services
 
 
 @app.delete("/services/{service_id}")
@@ -142,104 +160,30 @@ def update_incident_ended_at(incident_id: int, db: Session = Depends(get_db)):
     db.refresh(incident)
     return incident
 
-@app.post("/contact_attempts/")
-def add_contact_attempt(contact_attempt: ContactAttemptCreate, db: Session = Depends(get_db)):
-    new_attempt = ContactAttempt(
-        incident_id=contact_attempt.incident_id,
-        admin_id=contact_attempt.admin_id,
-        channel=contact_attempt.channel,
-        attempted_at=datetime.now(timezone.utc),
-        result=None,
-        response_at=None
-    )
-    db.add(new_attempt)
+
+@app.post("/services/{service_id}/failures")
+def record_ping_failure(service_id: int, db: Session = Depends(get_db)):
+    failure = PingFailure(service_id=service_id)
+    db.add(failure)
     db.commit()
-    db.refresh(new_attempt)
+    return {"status": "failure recorded"}
 
-    return {"status": "contact attempt added", "contact_attempt_id": new_attempt.id}
 
-@app.patch("/contact_attempts/{attempt_id}")
-def update_contact_attempt(attempt_id: int, result: str, db: Session = Depends(get_db)):
-    attempt = db.query(ContactAttempt).filter(ContactAttempt.id == attempt_id).first()
-    if not attempt:
-        raise HTTPException(404, "Contact attempt not found")
+@app.get("/services/{service_id}/failures/recent")
+def list_recent_failures(service_id: int, window_seconds: int, db: Session = Depends(get_db)):
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
 
-    attempt.result = result
-    attempt.response_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(attempt)
-    return attempt
-
-@app.get("/incidents/ack")
-def acknowledge_incident(token: str, db: Session = Depends(get_db)):
-    # Decode token
-    try:
-        payload = jwt.decode(token, JWTConfig.SECRET, algorithms=["HS256"])
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=400, detail="Token expired")
-    except InvalidTokenError:
-        raise HTTPException(status_code=400, detail="Invalid token")
-
-    incident_id = payload["incident_id"]
-    admin_id = payload["admin_id"]
-
-    # Fetch incident
-    incident = db.query(Incident).filter(Incident.id == incident_id).first()
-    if not incident:
-        raise HTTPException(status_code=404, detail="Incident not found")
-
-    # Handle terminal states
-    if incident.status == "resolved":
-        return {"status": "already resolved"}
-
-    if incident.status == "acknowledged":
-        return {"status": "already acknowledged"}
-
-    # Acknowledge incident
-    incident.status = "acknowledged"
-    db.commit()
-
-    # Update contact attempt
-    attempt = db.query(ContactAttempt).filter(
-        ContactAttempt.incident_id == incident_id,
-        ContactAttempt.admin_id == admin_id
-    ).order_by(ContactAttempt.attempted_at.desc()).first()
-
-    if attempt:
-        attempt.result = "acknowledged"
-        attempt.response_at = datetime.now(timezone.utc)
-        db.commit()
-
-    return {"status": "acknowledged"}
-
-@app.get("/incidents/{incident_id}")
-def get_incident(incident_id: int, db: Session = Depends(get_db)):
-    incident = db.query(Incident).filter(Incident.id == incident_id).first()
-    if not incident:
-        raise HTTPException(404, "Incident not found")
-    return incident
-
-@app.get("/incidents/{incident_id}/admins")
-def get_admins_by_incident(incident_id: int, role: str | None = None, db: Session = Depends(get_db)):
-    incident = db.query(Incident).filter(Incident.id == incident_id).first()
-    if not incident:
-        raise HTTPException(404, "Incident not found")
-    q = (
-        db.query(Admin)
-        .join(ServiceAdmin, ServiceAdmin.admin_id == Admin.id)
-        .filter(ServiceAdmin.service_id == incident.service_id)
-    )
-    if role:
-        q = q.filter(ServiceAdmin.role == role)
-    return q.all()
-
-@app.get("/incidents/{incident_id}/notified-admins")
-def get_notified_admins(incident_id: int, db: Session = Depends(get_db)):
-    admins = (
-        db.query(Admin)
-        .join(ContactAttempt, ContactAttempt.admin_id == Admin.id)
-        .filter(ContactAttempt.incident_id == incident_id)
-        .distinct()
+    return (
+        db.query(PingFailure)
+        .filter(PingFailure.service_id == service_id)
+        .filter(PingFailure.failed_at >= cutoff)
         .all()
     )
-    return admins
+
+
+@app.delete("/failures/cleanup")
+def cleanup_old_failures(db: Session = Depends(get_db)):
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+    deleted = db.query(PingFailure).filter(PingFailure.failed_at < cutoff).delete()
+    db.commit()
+    return {"deleted": deleted}
