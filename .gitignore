@@ -209,3 +209,4 @@ __marimo__/
 
 # CUSTOM
 *.db
+notification_module/notification_engine_previous.py
