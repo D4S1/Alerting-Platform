@@ -101,3 +101,17 @@ def client(db_session):
         yield c
 
     app.dependency_overrides.clear()
+
+@pytest.fixture(autouse=True)
+def mock_env_vars(monkeypatch):
+    """
+    Env variables for testing.
+    """
+    monkeypatch.setenv("SMTP_HOST", "localhost")
+    monkeypatch.setenv("SMTP_USERNAME", "test")
+    monkeypatch.setenv("SMTP_PASSWORD", "test")
+    monkeypatch.setenv("SMTP_FROM", "test@test.com")
+    monkeypatch.setenv("SMTP_PORT", "1025")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-key")
+    monkeypatch.setenv("JWT_EXP_MINUTES", "15")
+    monkeypatch.setenv("ESCALATION_DELAY_SECONDS", "1")

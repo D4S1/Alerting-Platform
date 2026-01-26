@@ -2,14 +2,14 @@ import time
 import jwt
 from datetime import datetime, timedelta, timezone
 
-from api_client import NotificationApiClient
 from config import JWTConfig
+from notification_module.api_client import NotificationApiClient
 from notification_module.mailer import Mailer
 from utils.models import Admin
 
 JWT_SECRET = JWTConfig.SECRET
 JWT_EXP_MINUTES = JWTConfig.EXP_MINUTES
-ESCALATION_DELAY_SECONDS = 300  # 5 minutes
+ESCALATION_DELAY_SECONDS = JWTConfig.ESCALATION_DELAY_SECONDS
 
 
 class NotificationEngine:

@@ -60,3 +60,23 @@ Closes the incident (sets ended_at to current time)
 ```
 curl -X PATCH "http://localhost:8000/incidents/<incident_id>/resolve" 
 ```
+
+## Notification engine
+### Environment configuration
+
+1. Copy example file:
+```bash
+cp .env.example .env
+```
+2. Fill in the values ​​in .env:
+
+| Variable                 | Description                                | Example / Default            |
+|--------------------------|--------------------------------------------|------------------------------|
+| SMTP_HOST                | Address of the SMTP server                 | smtp.gmail.com               |
+| SMTP_PORT                | Port for the SMTP server                   | 587 (default)                |
+| SMTP_USERNAME            | Username (usually email address)           | user@example.com             |
+| SMTP_PASSWORD            | Password or App Password                   | your-secret-password         |
+| SMTP_FROM                | Email address shown as the sender          | notifications@yourdomain.com |
+| JWT_SECRET               | Secret key for signing ACK tokens          | long-random-string-here      |
+| JWT_EXP_MINUTES          | Token expiration time in minutes           | 15 (default)                 |
+| ESCALATION_DELAY_SECONDS | Delay before escalating to secondary admin | 300 (5 minutes)              |
