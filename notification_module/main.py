@@ -1,6 +1,6 @@
 import os
 from flask import Flask, request, jsonify
-from notification_module.notification_engine_cloud_run import NotificationEngine
+from notification_module.notification_engine import NotificationEngine
 from notification_module.api_client import NotificationApiClient
 from notification_module.mailer import Mailer
 
