@@ -1,12 +1,28 @@
 import pytest
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from datetime import datetime, timezone
 
 from api.main import app
 from api import db as db_module
 from utils.models import Base, Service, Admin, ServiceAdmin, Incident, ContactAttempt
+
+
+# -----------------------------
+# Pytest Configuration
+# -----------------------------
+
+def pytest_configure(config):
+    """
+    Sets environment variables for tests.
+    """
+    os.environ["JWT_SECRET"] = "test-secret-key-for-ci"
+    os.environ["SMTP_HOST"] = "localhost"
+    os.environ["SMTP_USERNAME"] = "test-user"
+    os.environ["SMTP_PASSWORD"] = "test-password"
+    os.environ["SMTP_PORT"] = "587"
 
 # -----------------------------
 # Fixtures
@@ -101,17 +117,3 @@ def client(db_session):
         yield c
 
     app.dependency_overrides.clear()
-
-@pytest.fixture(autouse=True)
-def mock_env_vars(monkeypatch):
-    """
-    Env variables for testing.
-    """
-    monkeypatch.setenv("SMTP_HOST", "localhost")
-    monkeypatch.setenv("SMTP_USERNAME", "test")
-    monkeypatch.setenv("SMTP_PASSWORD", "test")
-    monkeypatch.setenv("SMTP_FROM", "test@test.com")
-    monkeypatch.setenv("SMTP_PORT", "1025")
-    monkeypatch.setenv("JWT_SECRET", "test-secret-key")
-    monkeypatch.setenv("JWT_EXP_MINUTES", "15")
-    monkeypatch.setenv("ESCALATION_DELAY_SECONDS", "1")
