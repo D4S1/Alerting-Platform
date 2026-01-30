@@ -56,7 +56,7 @@ class IPStatusCollector:
         params = {"window_seconds": self.alerting_window_seconds}
         async with httpx.AsyncClient() as client:
             r = await client.get(url, params=params)
-            failures = r.json()
+            failures = await r.json()
             return len(failures) >= self.service["failure_threshold"]
 
     # ------------------ Incidents (API) ------------------

@@ -42,8 +42,8 @@ def test_change_service_admin(client, db_session):
     resp = client.put(
         "/services/1/admin",
         json={
-            "admin_id": 1,
             "role": "primary",
+            "new_admin_id": 1
         },
     )
 
