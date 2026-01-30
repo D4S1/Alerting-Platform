@@ -31,13 +31,13 @@ def db_session(tmp_path):
     session: Session = TestingSessionLocal()
     try:
         # Admins
-        admins = [
+        admins=[
             Admin(name="Alice", contact_type="email", contact_value="alice@test.com"),
             Admin(name="Bob", contact_type="email", contact_value="bob@test.com"),
             Admin(name="Hanna", contact_type="email", contact_value="hanna@test.com"),
             Admin(name="John", contact_type="email", contact_value="john@test.com"),
-        ])
-        session.add_all([
+        ]
+        services = [
             Service(
                 name="svc1",
                 IP="1.1.1.1",
@@ -54,7 +54,9 @@ def db_session(tmp_path):
                 failure_threshold=1,
                 next_at=datetime.now() + timedelta(minutes=5)
             ),
-        ])
+        ]
+        session.add_all(services)
+        session.add_all(admins)
         session.commit()
 
         # ServiceAdmins
