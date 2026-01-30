@@ -1,15 +1,13 @@
-import time
+import json
 import jwt
+from google.cloud import tasks_v2
 from datetime import datetime, timedelta, timezone
+from google.protobuf import timestamp_pb2
 
-from api_client import NotificationApiClient
 from config import JWTConfig
+from notification_module.api_client import NotificationApiClient
 from notification_module.mailer import Mailer
 from utils.models import Admin
-
-JWT_SECRET = JWTConfig.SECRET
-JWT_EXP_MINUTES = JWTConfig.EXP_MINUTES
-ESCALATION_DELAY_SECONDS = 300  # 5 minutes
 
 
 class NotificationEngine:
@@ -22,26 +20,29 @@ class NotificationEngine:
     within a defined time window.
 
     Attributes:
-        db: Database interface used to fetch incidents, administrators, and store contact attempts.
+        api: API client used to interact with the notification backend.
         mailer: Mailer service responsible for sending email notifications.
+        project_id: GCP project ID for Cloud Tasks.
+        location: GCP location for Cloud Tasks.
+        queue: Cloud Tasks queue name.
     """
-
-    def __init__(self, api: NotificationApiClient, mailer: Mailer):
-        """
-        :param db: Database access layer.
-        :param mailer: Mailer service used to send emails.
-        """
+    def __init__(self, api: NotificationApiClient, mailer: Mailer, project_id: str, location: str, queue: str):
         self.api = api
         self.mailer = mailer
+        self.tasks_client = tasks_v2.CloudTasksClient()
+        
+        # Cloud Tasks configuration
+        self.queue_path = self.tasks_client.queue_path(project_id, location, queue)
+        self.service_url = "https://cloud-run-service.a.run.app/escalate" # TODO: replace with actual URL
 
     def handle_event(self, event: dict):
         """
         Sends the event to the appropriate internal handler based on its type.
         """
         if event["type"] == "CREATE_INCIDENT":
-            self._handle_incident_created(event["incident_id"])
+            return self._handle_incident_created(event["incident_id"])
         elif event["type"] == "RESOLVE_INCIDENT":
-            self._handle_incident_resolved(event["incident_id"])
+            return self._handle_incident_resolved(event["incident_id"])
 
     def _handle_incident_created(self, incident_id: int):
         """
@@ -55,7 +56,7 @@ class NotificationEngine:
 
         for admin in primary_admins:
             self._notify_admin(incident_id, admin, escalation=False)
-
+    
     def _notify_admin(self, incident_id: int, admin: Admin, escalation: bool):
         """
         Generates an acknowledgment token, sends a notification email to the admin,
@@ -95,26 +96,48 @@ class NotificationEngine:
         payload = {
             "incident_id": incident_id,
             "admin_id": admin_id,
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=JWT_EXP_MINUTES),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=JWTConfig.JWT_EXP_MINUTES),
         }
-        return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-    
+        return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
+
     def _schedule_escalation(self, incident_id: int):
         """
-        Waits for a predefined delay, checks whether the incident was acknowledged,
-        and if not, notifies secondary administrators.
+        Creates a task in Cloud Tasks that hits the /escalate endpoint after the delay.
         """
-        time.sleep(ESCALATION_DELAY_SECONDS)
-        # In production: replace sleep with delayed job / scheduler / Celery task
+        
+        payload = {"incident_id": incident_id}
+        body = json.dumps(payload).encode()
+
+        # Calculate scheduled time
+        d = datetime.now(timezone.utc) + timedelta(seconds=JWTConfig.ESCALATION_DELAY_SECONDS)
+        timestamp = timestamp_pb2.Timestamp()
+        timestamp.FromDatetime(d)
+
+        task = {
+            "http_request": {
+                "http_method": tasks_v2.HttpMethod.POST,
+                "url": self.service_url,
+                "headers": {"Content-type": "application/json"},
+                "body": body,
+            },
+            "schedule_time": timestamp,
+        }
+
+        self.tasks_client.create_task(parent=self.queue_path, task=task)
+        print(f"Scheduled escalation for incident {incident_id}")
+
+
+    def handle_escalation_check(self, incident_id: int):
+        """
+        Sends escalation notifications to secondary administrators
+        if the incident has not been acknowledged.
+        """
 
         if self.api.is_acknowledged(incident_id):
+            print(f"Incident {incident_id} already acknowledged. Skipping escalation.")
             return
 
-        secondary_admins = self.api.get_admins_by_incident(
-            incident_id,
-            role="secondary"
-        )
-
+        secondary_admins = self.api.get_admins_by_incident(incident_id, role="secondary")
         for admin in secondary_admins:
             self._notify_admin(incident_id, admin, escalation=True)
 
@@ -124,21 +147,6 @@ class NotificationEngine:
         who were previously notified about the incident.
         """
         admins = self.api.get_notified_admins(incident_id)
-
-        for admin in admins:
-            self.mailer.send(
-                to=admin.contact_value,
-                subject="Incident resolved",
-                body="The service is back online."
-            )
-
-
-    def _handle_incident_resolved(self, incident_id: int):
-        """
-        Sends a resolution notification to all administrators
-        who were previously notified about the incident.
-        """
-        admins = self.db.get_notified_admins(incident_id)
 
         for admin in admins:
             self.mailer.send(

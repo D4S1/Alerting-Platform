@@ -1,5 +1,8 @@
 import pytest
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
+import os
+import jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime, timezone, timedelta
@@ -7,6 +10,22 @@ from datetime import datetime, timezone, timedelta
 from api.main import app
 from api import db as db_module
 from utils.models import Base, Service, Admin, ServiceAdmin, Incident, ContactAttempt
+from config import JWTConfig
+
+
+# -----------------------------
+# Pytest Configuration
+# -----------------------------
+
+def pytest_configure(config):
+    """
+    Sets environment variables for tests.
+    """
+    os.environ["JWT_SECRET"] = "test-secret-key-for-ci"
+    os.environ["SMTP_HOST"] = "localhost"
+    os.environ["SMTP_USERNAME"] = "test-user"
+    os.environ["SMTP_PASSWORD"] = "test-password"
+    os.environ["SMTP_PORT"] = "587"
 
 # -----------------------------
 # Fixtures
@@ -36,8 +55,11 @@ def db_session(tmp_path):
             Admin(name="Bob", contact_type="email", contact_value="bob@test.com"),
             Admin(name="Hanna", contact_type="email", contact_value="hanna@test.com"),
             Admin(name="John", contact_type="email", contact_value="john@test.com"),
-        ])
-        session.add_all([
+        ]
+        session.add_all(admins)
+
+        # Services
+        services = [
             Service(
                 name="svc1",
                 IP="1.1.1.1",
@@ -54,7 +76,8 @@ def db_session(tmp_path):
                 failure_threshold=1,
                 next_at=datetime.now() + timedelta(minutes=5)
             ),
-        ])
+        ]
+        session.add_all(services)
         session.commit()
 
         # ServiceAdmins
@@ -111,3 +134,17 @@ def client(db_session):
         yield c
 
     app.dependency_overrides.clear()
+
+# -----------------------------
+# Test helpers
+# -----------------------------
+
+def make_ack_token(incident_id=1, admin_id=1, expired=False):
+    payload = {
+        "incident_id": incident_id,
+        "admin_id": admin_id,
+        "exp": datetime.now(timezone.utc) - timedelta(minutes=1)
+        if expired
+        else datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
