@@ -96,7 +96,7 @@ class NotificationEngine:
         payload = {
             "incident_id": incident_id,
             "admin_id": admin_id,
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=JWTConfig.EXP_MINUTES),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=JWTConfig.JWT_EXP_MINUTES),
         }
         return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
 

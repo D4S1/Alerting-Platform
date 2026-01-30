@@ -58,8 +58,22 @@ def db_session(tmp_path):
 
         # Services
         services = [
-            Service(name="svc1", IP="1.1.1.1", frequency_seconds=60, alerting_window_npings=300),
-            Service(name="svc2", IP="1.1.1.2", frequency_seconds=20, alerting_window_npings=200),
+            Service(
+                name="svc1",
+                IP="1.1.1.1",
+                frequency_seconds=1,          # very low for fast tests
+                alerting_window_npings=3,     # threshold
+                failure_threshold=2,          # new field
+                next_at=datetime.now() + timedelta(minutes=5)
+            ),
+            Service(
+                name="svc2",
+                IP="1.1.1.2",
+                frequency_seconds=1,
+                alerting_window_npings=2,
+                failure_threshold=1,
+                next_at=datetime.now() + timedelta(minutes=5)
+            ),
         ]
         session.add_all(services)
         session.commit()

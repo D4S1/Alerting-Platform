@@ -13,8 +13,8 @@ class SMTPConfig:
 
 
 class JWTConfig:
-    SECRET = os.getenv("JWT_SECRET")
-    EXP_MINUTES = int(os.getenv("JWT_EXP_MINUTES", "15"))
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    JWT_EXP_MINUTES = int(os.getenv("JWT_EXP_MINUTES", "15"))
     ESCALATION_DELAY_SECONDS = int(os.getenv("ESCALATION_DELAY_SECONDS", "300"))
 
 
@@ -24,7 +24,7 @@ def validate():
             "SMTP_HOST": SMTPConfig.HOST,
             "SMTP_USERNAME": SMTPConfig.USERNAME,
             "SMTP_PASSWORD": SMTPConfig.PASSWORD,
-            "JWT_SECRET": JWTConfig.SECRET,
+            "JWT_SECRET": JWTConfig.JWT_SECRET,
         }.items()
         if not value
     ]

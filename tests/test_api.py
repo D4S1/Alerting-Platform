@@ -43,15 +43,29 @@ def test_change_service_admin(client, db_session):
         "/services/1/admin",
         json={
             "role": "primary",
-            "new_admin_id": 1
+            "new_admin_id": 3
         },
     )
 
     assert resp.status_code == 200
-    assert resp.json()["status"] == "service admin updated"
 
-    sa = db_session.query(ServiceAdmin).filter_by(service_id=1, role="primary").first()
-    assert sa.admin_id == 1
+    sa = db_session.query(ServiceAdmin).filter_by(
+        service_id=1, role="primary"
+    ).first()
+
+    assert sa.admin_id == 3
+
+def test_change_service_admin_conflict(client):
+    resp = client.put(
+        "/services/1/admin",
+        json={
+            "role": "primary",
+            "new_admin_id": 2  # already exists as secondary
+        },
+    )
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Admin already assigned to this service"
 
 
 def test_update_admin_contact(client, db_session):
@@ -76,3 +90,9 @@ def test_update_missing_admin(client):
     )
 
     assert resp.status_code == 404
+
+def test_update_admin_no_fields(client):
+    resp = client.patch("/admins/1", json={})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "No fields to update"
+

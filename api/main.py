@@ -121,6 +121,18 @@ def update_service_admin(service_id: int, update: ServiceAdminUpdate, db: Sessio
     if not sa:
         raise HTTPException(status_code=404, detail="Service admin with given service ID and role not found")
 
+    # Check if new admin is already assigned to this service
+    existing = db.query(ServiceAdmin).filter(
+        ServiceAdmin.service_id == service_id,
+        ServiceAdmin.admin_id == update.new_admin_id
+    ).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Admin already assigned to this service"
+        )
+
     sa.admin_id = update.new_admin_id
     db.commit()
     db.refresh(sa)
@@ -304,7 +316,7 @@ def update_contact_attempt(attempt_id: int, result: str, db: Session = Depends(g
 def acknowledge_incident(token: str, db: Session = Depends(get_db)):
     # Decode token
     try:
-        payload = jwt.decode(token, JWTConfig.SECRET, algorithms=["HS256"])
+        payload = jwt.decode(token, JWTConfig.JWT_SECRET, algorithms=["HS256"])
     except ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Token expired")
     except InvalidTokenError:

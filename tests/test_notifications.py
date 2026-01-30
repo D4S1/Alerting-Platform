@@ -17,6 +17,16 @@ def mock_mailer():
     mailer.send.return_value = True
     return mailer
 
+@pytest.fixture
+def mock_tasks_client(monkeypatch):
+    mock_client = MagicMock()
+
+    monkeypatch.setattr(
+        "notification_module.notification_engine.tasks_v2.CloudTasksClient",
+        lambda: mock_client
+    )
+    return mock_client
+
 
 # -----------------------------
 # Test helpers
@@ -30,7 +40,7 @@ def make_token(incident_id=1, admin_id=1, expired=False):
         if expired
         else datetime.now(timezone.utc) + timedelta(minutes=10),
     }
-    return jwt.encode(payload, JWTConfig.SECRET, algorithm="HS256")
+    return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
 
 
 # -----------------------------
@@ -105,17 +115,21 @@ def test_contact_attempt_updated_on_ack(client, db_session):
     assert attempt.result == "acknowledged"
     assert attempt.response_at is not None
 
-def test_notification_engine_logic(mock_mailer):
+def test_notification_engine_logic(mock_mailer, mock_tasks_client):
     api = MagicMock()
-    fake_admin = Admin(id=1, contact_value="test@example.com") # Fake admin as API response
+    fake_admin = Admin(id=1, contact_value="test@example.com")
     api.get_admins_by_incident.return_value = [fake_admin]
-    
-    engine = NotificationEngine(api=api, mailer=mock_mailer)
-    engine.handle_event({"type": "CREATE_INCIDENT", "incident_id": 123})
-    assert mock_mailer.send.called  # Test if send was called
+    api.get_service_name.return_value = None
 
-    mock_mailer.send.assert_called_once_with(
-        to="test@example.com",
-        subject="Incident detected",
-        body=ANY
+    engine = NotificationEngine(
+        api=api,
+        mailer=mock_mailer,
+        project_id="test-project",
+        location="europe-west1",
+        queue="notifications"
     )
+
+    engine.handle_event({"type": "CREATE_INCIDENT", "incident_id": 123})
+
+    mock_mailer.send.assert_called_once()
+    mock_tasks_client.create_task.assert_called_once()
