@@ -7,6 +7,25 @@ class ServiceCreate(BaseModel):
     IP: str
     frequency_seconds: int
     alerting_window_npings: int
+    failure_threshold: int
+
+
+class ServiceEdit(BaseModel):
+    frequency_seconds: int
+    alerting_window_npings: int
+    failure_threshold: int
+
+
+class ServiceOut(BaseModel):
+    id: int
+    name: str
+    IP: str
+    frequency_seconds: int
+    alerting_window_npings: int
+    failure_threshold: int
+
+    class Config:
+        from_attributes = True
 
 
 class AdminCreate(BaseModel):
@@ -15,14 +34,29 @@ class AdminCreate(BaseModel):
     contact_value: str
 
 
+class AdminOut(BaseModel):
+    id: int
+    name: str
+    contact_type: str
+    contact_value: str
+
+    class Config:
+        from_attributes = True
+
+
 class AdminContactUpdate(BaseModel):
     contact_type: Optional[str] = None
     contact_value: Optional[str] = None
 
 
-class ServiceAdminUpdate(BaseModel):
+class ServiceAdminCreate(BaseModel):
+    service_id: int
     admin_id: int
+    role: str
+
+class ServiceAdminUpdate(BaseModel):
     role: str  # "primary"/"secondary"
+    new_admin_id: int
 
 
 class IncidentCreate(BaseModel):

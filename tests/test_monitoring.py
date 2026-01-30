@@ -1,178 +1,112 @@
-import time
 import pytest
-from unittest.mock import patch
-from requests import RequestException
-from requests.exceptions import ConnectionError, ConnectTimeout, ReadTimeout
+from unittest.mock import AsyncMock, patch
+import httpx
 
-from monitoring_module.monitoring import IPStatusCollector
-
-
-# -----------------------------
-# Fake queue publisher
-# -----------------------------
-class FakeQueuePublisher:
-    def __init__(self):
-        self.jobs = []
-
-    def publish(self, job):
-        self.jobs.append(job)
+from monitoring_module.collector import IPStatusCollector
 
 
-# -----------------------------
-# Test helpers
-# -----------------------------
-def create_collector(
-    *,
-    failure_threshold=3,
-    alerting_window=10,
-):
+@pytest.fixture
+def service():
+    return {
+        "id": 1,
+        "IP": "1.1.1.1",
+        "frequency_seconds": 10,
+        "alerting_window_npings": 10,
+        "failure_threshold": 3
+    }
+
+
+@pytest.fixture
+def collector(service):
+    fake_publisher = AsyncMock()
+    fake_publisher.publish.return_value = "ok"
+
     return IPStatusCollector(
-        ip="1.1.1.1",
-        frequency=10,
-        alerting_window=alerting_window,
-        failure_threshold=failure_threshold,
-        timeout=1,
-        queue_publisher=FakeQueuePublisher(),
+        service=service,
+        api_base_url="http://api",
+        pubsub_topic="projects/test/topics/incidents",
+        publisher=fake_publisher
     )
 
 
-# -----------------------------
-# Tests: _perform_check
-# -----------------------------
-def test_check_success():
-    collector = create_collector()
+# -------------------- _perform_check --------------------
 
-    with patch("requests.get") as mock_get:
+@pytest.mark.asyncio
+async def test_check_success(collector):
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value.status_code = 200
-
-        result = collector._perform_check()
-
-    assert result is True
+        assert await collector._perform_check() is True
 
 
-def test_check_failure():
-    collector = create_collector()
-
-    with patch("requests.get") as mock_get:
+@pytest.mark.asyncio
+async def test_check_failure_status(collector):
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value.status_code = 500
-
-        result = collector._perform_check()
-
-    assert result is False
+        assert await collector._perform_check() is False
 
 
-def test_check_exception_is_failure():
-    collector = create_collector()
-
-    with patch("requests.get", side_effect=RequestException()):
-        result = collector._perform_check()
-
-    assert result is False
+@pytest.mark.asyncio
+async def test_check_exception(collector):
+    with patch("httpx.AsyncClient.get", side_effect=httpx.RequestError("Error")):
+        assert await collector._perform_check() is False
 
 
-# -----------------------------
-# Tests: failure recording
-# -----------------------------
-def test_record_failure_adds_timestamp():
-    collector = create_collector()
+# -------------------- Failure logic --------------------
 
-    assert len(collector.failures) == 0
-
-    collector._record_failure()
-
-    assert len(collector.failures) == 1
+@pytest.mark.asyncio
+async def test_record_failure_calls_api(collector):
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        await collector._record_failure()
+        mock_post.assert_called_once()
 
 
-def test_cleanup_old_failures_removes_expired():
-    collector = create_collector(alerting_window=10) # 10 pings * 10s = 100s window
-
-    now = time.time()
-    collector.failures.append(now - 110)  # expired
-    collector.failures.append(now - 50)   # valid
-
-    collector._cleanup_old_failures(now)
-
-    assert len(collector.failures) == 1
+@pytest.mark.asyncio
+async def test_should_trigger_incident_false(collector):
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value.json.return_value = [1]  # 1 failure < threshold
+        assert await collector._should_trigger_incident() is False
 
 
-# -----------------------------
-# Tests: incident triggering
-# -----------------------------
-def test_should_trigger_incident_false_when_below_threshold():
-    collector = create_collector(failure_threshold=3)
-
-    collector.failures.extend([1, 2])
-
-    assert collector._should_trigger_incident() is False
+@pytest.mark.asyncio
+async def test_should_trigger_incident_true(collector):
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value.json.return_value = [1, 2, 3]
+        assert await collector._should_trigger_incident() is True
 
 
-def test_should_trigger_incident_true_when_threshold_reached():
-    collector = create_collector(failure_threshold=2)
+# -------------------- Incident flow --------------------
 
-    collector.failures.extend([1, 2])
+@pytest.mark.asyncio
+async def test_run_once_creates_incident_and_publishes(collector):
+    with patch.object(collector, "_perform_check", return_value=False), \
+         patch.object(collector, "_record_failure", new_callable=AsyncMock), \
+         patch.object(collector, "_should_trigger_incident", return_value=True), \
+         patch.object(collector, "_get_open_incident", return_value=None), \
+         patch.object(collector, "_create_incident", return_value={"id": 123}), \
+         patch.object(collector, "_publish_incident", new_callable=AsyncMock) as mock_pub:
 
-    assert collector._should_trigger_incident() is True
-
-
-# -----------------------------
-# Tests: incident publishing
-# -----------------------------
-def test_publish_incident_creates_job():
-    collector = create_collector()
-
-    publisher = collector.queue_publisher
-
-    collector._publish_incident()
-
-    assert len(publisher.jobs) == 1
-
-    job = publisher.jobs[0]
-    assert job["type"] == "CREATE_INCIDENT"
-    assert job["service_id"] == "1.1.1.1"
-    assert job["status"] == "registered"
-    assert "started_at" in job
+        await collector.run_once()
+        mock_pub.assert_called_once_with(123)
 
 
-# -----------------------------
-# Tests: run_once behavior
-# -----------------------------
-def test_run_once_success_does_not_record_failure():
-    collector = create_collector()
+@pytest.mark.asyncio
+async def test_run_once_resolves_incident_when_recovered(collector):
+    with patch.object(collector, "_perform_check", return_value=True), \
+         patch.object(collector, "_should_trigger_incident", return_value=False), \
+         patch.object(collector, "_get_open_incident", return_value={"id": 55}), \
+         patch.object(collector, "_resolve_incident", new_callable=AsyncMock) as mock_resolve:
 
-    with patch("requests.get") as mock_get:
-        mock_get.return_value.status_code = 200
-        collector.run_once()
-
-    assert len(collector.failures) == 0
-    assert collector.queue_publisher.jobs == []
+        await collector.run_once()
+        mock_resolve.assert_called_once_with(55)
 
 
-def test_run_once_failure_records_failure():
-    collector = create_collector()
+@pytest.mark.asyncio
+async def test_run_once_no_duplicate_incident(collector):
+    with patch.object(collector, "_perform_check", return_value=False), \
+         patch.object(collector, "_record_failure", new_callable=AsyncMock), \
+         patch.object(collector, "_should_trigger_incident", return_value=True), \
+         patch.object(collector, "_get_open_incident", return_value={"id": 9}), \
+         patch.object(collector, "_create_incident", new_callable=AsyncMock) as mock_create:
 
-    with patch("requests.get", side_effect=ConnectionError()):
-        collector.run_once()
-
-    assert len(collector.failures) == 1
-
-
-def test_run_once_triggers_incident_after_threshold():
-    collector = create_collector(failure_threshold=2)
-
-    with patch("requests.get", side_effect=ConnectTimeout()):
-        collector.run_once()
-        collector.run_once()
-
-    publisher = collector.queue_publisher
-    assert len(publisher.jobs) == 1
-
-
-def test_run_once_does_not_trigger_incident_below_threshold():
-    collector = create_collector(failure_threshold=3)
-
-    with patch("requests.get", side_effect=ReadTimeout()):
-        collector.run_once()
-        collector.run_once()
-
-    publisher = collector.queue_publisher
-    assert publisher.jobs == []
+        await collector.run_once()
+        mock_create.assert_not_called()

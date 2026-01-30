@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">Edit Service</div>
+    <div class="card-body">
+        <form action="/service/{{ service.id }}/edit" method="POST">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Service Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ service.name }}" readonly>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>IP / URL</label>
+                    <input type="text" name="ip" class="form-control" value="{{ service.IP }}" readonly>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label>Frequency (seconds)</label>
+                    <input type="number" name="frequency_seconds" class="form-control" value="{{ service.frequency_seconds }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Alert Window (Ping count)</label>
+                    <input type="number" name="alerting_window_npings" class="form-control" value="{{ service.alerting_window_npings }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Failure Threshold</label>
+                    <input type="number" name="failure_threshold" class="form-control" value="{{ service.failure_threshold }}" required>
+                </div>
+            </div>
+
+            <hr>
+            <h5>Admin Assignment</h5>
+            <div class="mb-3">
+                <label>Select Primary Admin</label>
+                <select name="primary" class="form-select">
+                    <option value="">{{ current_admins.primary.name }} ({{ current_admins.primary.contact_value }})</option>
+                    {% for admin in admins %}
+                        <option value="{{ admin.id }}" {% if current_admins.primary == admin.id %}selected{% endif %}>
+                            {{ admin.name }} ({{ admin.contact_value }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label>Select Secondary Admin</label>
+                <select name="secondary" class="form-select">
+                    <option value="">{{ current_admins.secondary.name }} ({{ current_admins.secondary.contact_value }})</option>
+                    {% for admin in admins %}
+                        <option value="{{ admin.id }}" {% if current_admins.secondary == admin.id %}selected{% endif %}>
+                            {{ admin.name }} ({{ admin.contact_value }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button class="btn btn-success">Update Service</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

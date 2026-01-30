@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Column, Integer, String, DateTime, ForeignKey, CheckConstraint, func
 )
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -14,6 +15,12 @@ class Service(Base):
     IP = Column(String, nullable=False)
     frequency_seconds = Column(Integer, nullable=False)
     alerting_window_npings = Column(Integer, nullable=False)
+    failure_threshold = Column(Integer, nullable=False, default=3)
+    next_at = Column(
+        DateTime,
+        nullable=False,
+        default=func.now() + timedelta(seconds=60),
+    )
 
     # Cascade delete incidents and service_admins when service is deleted
     incidents = relationship(
@@ -107,3 +114,11 @@ class ContactAttempt(Base):
 
     incident = relationship("Incident", back_populates="contact_attempts")
     admin = relationship("Admin", back_populates="contact_attempts")
+
+
+class PingFailure(Base):
+    __tablename__ = "ping_failures"
+
+    id = Column(Integer, primary_key=True)
+    service_id = Column(Integer, ForeignKey("services.id"), index=True)
+    failed_at = Column(DateTime(timezone=True), index=True, default=lambda: datetime.now(timezone.utc))

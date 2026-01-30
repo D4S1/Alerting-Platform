@@ -8,6 +8,7 @@ def test_add_service(client, db_session):
             "IP": "8.8.8.8",
             "frequency_seconds": 30,
             "alerting_window_npings": 10,
+            "failure_threshold": 5,
         },
     )
 
@@ -20,6 +21,7 @@ def test_add_service(client, db_session):
     assert service.IP == "8.8.8.8"
     assert service.frequency_seconds == 30
     assert service.alerting_window_npings == 10
+    assert service.failure_threshold == 5
 
 
 def test_delete_service(client, db_session):
@@ -40,8 +42,8 @@ def test_change_service_admin(client, db_session):
     resp = client.put(
         "/services/1/admin",
         json={
-            "admin_id": 1,
             "role": "primary",
+            "new_admin_id": 1
         },
     )
 

@@ -60,3 +60,9 @@ Closes the incident (sets ended_at to current time)
 ```
 curl -X PATCH "http://localhost:8000/incidents/<incident_id>/resolve" 
 ```
+
+## How to initialize the UI
+
+```
+gunicorn --bind localhost:5000 ui.app:app
+```

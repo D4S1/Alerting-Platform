@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">My Profile</div>
+    <div class="card-body">
+        <form action="/profile" method="POST">
+            <div class="mb-3">
+                <label>Name</label>
+                <input type="text" class="form-control" value="{{ session.user_name }}" disabled>
+            </div>
+            <div class="mb-3">
+                <label>Current Contact (Email)</label>
+                <input type="email" name="email" class="form-control" value="{{ session.user_email }}" required>
+            </div>
+            <button class="btn btn-warning">Update Contact Info</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

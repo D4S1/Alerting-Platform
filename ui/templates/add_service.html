@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">Register New Service</div>
+    <div class="card-body">
+        <form action="/service/add" method="POST">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Service Name</label>
+                    <input type="text" name="name" class="form-control" required placeholder="e.g. Web Server">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>IP / URL</label>
+                    <input type="text" name="ip" class="form-control" required placeholder="192.168.1.10">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label>Frequency (seconds)</label>
+                    <input type="number" name="frequency" class="form-control" value="60">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Alert Window (Ping count)</label>
+                    <input type="number" name="window" class="form-control" value="10">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Failure Threshold</label>
+                    <input type="number" name="threshold" class="form-control" value="3">
+                </div>
+            </div>
+            
+            <hr>
+            <h5>Admin Assignment</h5>
+            <p class="text-muted">You ({{ session.user_name }}) will be the <strong>Primary Admin</strong>.</p>
+            
+            <div class="mb-3">
+                <label>Select Secondary Admin</label>
+                <select name="secondary_admin" class="form-select">
+                    <option value="">-- None --</option>
+                    {% for admin in admins %}
+                    <option value="{{ admin.id }}">{{ admin.name }} ({{ admin.contact_value }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button class="btn btn-primary">Create Service</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
