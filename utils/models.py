@@ -19,7 +19,7 @@ class Service(Base):
     next_at = Column(
         DateTime,
         nullable=False,
-        default=func.now() + timedelta(seconds=60),
+        default=datetime.now(timezone.utc) + timedelta(seconds=60),
     )
 
     # Cascade delete incidents and service_admins when service is deleted

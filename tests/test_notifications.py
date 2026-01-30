@@ -2,10 +2,11 @@ import pytest
 import jwt
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, ANY
+
 from config import JWTConfig
 from utils.models import Admin, Incident, ContactAttempt
 from notification_module.notification_engine import NotificationEngine
-
+from tests.conftest import make_ack_token
 
 # -----------------------------
 # Fixtures
@@ -29,26 +30,11 @@ def mock_tasks_client(monkeypatch):
 
 
 # -----------------------------
-# Test helpers
-# -----------------------------
-
-def make_token(incident_id=1, admin_id=1, expired=False):
-    payload = {
-        "incident_id": incident_id,
-        "admin_id": admin_id,
-        "exp": datetime.now(timezone.utc) - timedelta(minutes=1)
-        if expired
-        else datetime.now(timezone.utc) + timedelta(minutes=10),
-    }
-    return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
-
-
-# -----------------------------
 # Tests
 # -----------------------------
 
 def test_acknowledge_incident_success(client, db_session):
-    token = make_token(incident_id=1, admin_id=1)
+    token = make_ack_token(incident_id=1, admin_id=1)
 
     response = client.get(f"/incidents/ack?token={token}")
 
@@ -64,7 +50,7 @@ def test_acknowledge_incident_success(client, db_session):
     assert incident.status == "acknowledged"
 
 def test_acknowledge_idempotent(client):
-    token = make_token(incident_id=1, admin_id=1)
+    token = make_ack_token(incident_id=1, admin_id=1)
 
     r1 = client.get(f"/incidents/ack?token={token}")
     r2 = client.get(f"/incidents/ack?token={token}")
@@ -81,13 +67,13 @@ def test_acknowledge_resolved_incident(client, db_session):
     incident.status = "resolved"
     db_session.commit()
 
-    token = make_token(incident_id=1, admin_id=1)
+    token = make_ack_token(incident_id=1, admin_id=1)
     response = client.get(f"/incidents/ack?token={token}")
 
     assert response.json()["status"] == "already resolved"
 
 def test_acknowledge_expired_token(client):
-    token = make_token(expired=True)
+    token = make_ack_token(expired=True)
 
     response = client.get(f"/incidents/ack?token={token}")
 
@@ -101,7 +87,7 @@ def test_acknowledge_invalid_token(client):
     assert response.json()["detail"] == "Invalid token"
 
 def test_contact_attempt_updated_on_ack(client, db_session):
-    token = make_token(incident_id=1, admin_id=1)
+    token = make_ack_token(incident_id=1, admin_id=1)
 
     client.get(f"/incidents/ack?token={token}")
 

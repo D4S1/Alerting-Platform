@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 import os
+import jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime, timezone, timedelta
@@ -9,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 from api.main import app
 from api import db as db_module
 from utils.models import Base, Service, Admin, ServiceAdmin, Incident, ContactAttempt
+from config import JWTConfig
 
 
 # -----------------------------
@@ -132,3 +134,17 @@ def client(db_session):
         yield c
 
     app.dependency_overrides.clear()
+
+# -----------------------------
+# Test helpers
+# -----------------------------
+
+def make_ack_token(incident_id=1, admin_id=1, expired=False):
+    payload = {
+        "incident_id": incident_id,
+        "admin_id": admin_id,
+        "exp": datetime.now(timezone.utc) - timedelta(minutes=1)
+        if expired
+        else datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")

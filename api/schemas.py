@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 class ServiceCreate(BaseModel):
     name: str
@@ -50,12 +50,12 @@ class AdminContactUpdate(BaseModel):
 
 
 class ServiceAdminCreate(BaseModel):
-    service_id: int
     admin_id: int
-    role: str
+    role: Literal["primary", "secondary"]
+
 
 class ServiceAdminUpdate(BaseModel):
-    role: str  # "primary"/"secondary"
+    role: Literal["primary", "secondary"]
     new_admin_id: int
 
 
