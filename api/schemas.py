@@ -69,3 +69,9 @@ class IncidentUpdateStatus(BaseModel):
 
 class IncidentUpdateEndedAt(BaseModel):
     ended_at: datetime
+
+
+class ContactAttemptCreate(BaseModel):
+    incident_id: int
+    admin_id: int
+    channel: str

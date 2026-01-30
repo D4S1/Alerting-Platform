@@ -1,10 +1,13 @@
 from fastapi import FastAPI, HTTPException, Depends
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 from api.db import get_db
-from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut
-from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure 
+from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut, ContactAttemptCreate
+from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure, ContactAttempt
+from config import JWTConfig
 
 app = FastAPI(title="Monitoring API")
 
@@ -209,7 +212,7 @@ def list_open_incidents_for_service(service_id: int, db: Session = Depends(get_d
 
 
 @app.post("/services/{service_id}/incidents")
-def create_incident(service_id: int, db: Session = Depends(get_db)):
+def add_incident(service_id: int, db: Session = Depends(get_db)):
     incident = Incident(service_id=service_id)
     db.add(incident)
     db.commit()
@@ -268,3 +271,104 @@ def cleanup_old_failures(db: Session = Depends(get_db)):
     deleted = db.query(PingFailure).filter(PingFailure.failed_at < cutoff).delete()
     db.commit()
     return {"deleted": deleted}
+@app.post("/contact_attempts/")
+def add_contact_attempt(contact_attempt: ContactAttemptCreate, db: Session = Depends(get_db)):
+    new_attempt = ContactAttempt(
+        incident_id=contact_attempt.incident_id,
+        admin_id=contact_attempt.admin_id,
+        channel=contact_attempt.channel,
+        attempted_at=datetime.now(timezone.utc),
+        result=None,
+        response_at=None
+    )
+    db.add(new_attempt)
+    db.commit()
+    db.refresh(new_attempt)
+
+    return {"status": "contact attempt added", "contact_attempt_id": new_attempt.id}
+
+@app.patch("/contact_attempts/{attempt_id}")
+def update_contact_attempt(attempt_id: int, result: str, db: Session = Depends(get_db)):
+    attempt = db.query(ContactAttempt).filter(ContactAttempt.id == attempt_id).first()
+    if not attempt:
+        raise HTTPException(404, "Contact attempt not found")
+
+    attempt.result = result
+    attempt.response_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(attempt)
+    return attempt
+
+@app.get("/incidents/ack")
+def acknowledge_incident(token: str, db: Session = Depends(get_db)):
+    # Decode token
+    try:
+        payload = jwt.decode(token, JWTConfig.SECRET, algorithms=["HS256"])
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Token expired")
+    except InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    incident_id = payload["incident_id"]
+    admin_id = payload["admin_id"]
+
+    # Fetch incident
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    # Handle terminal states
+    if incident.status == "resolved":
+        return {"status": "already resolved"}
+
+    if incident.status == "acknowledged":
+        return {"status": "already acknowledged"}
+
+    # Acknowledge incident
+    incident.status = "acknowledged"
+    db.commit()
+
+    # Update contact attempt
+    attempt = db.query(ContactAttempt).filter(
+        ContactAttempt.incident_id == incident_id,
+        ContactAttempt.admin_id == admin_id
+    ).order_by(ContactAttempt.attempted_at.desc()).first()
+
+    if attempt:
+        attempt.result = "acknowledged"
+        attempt.response_at = datetime.now(timezone.utc)
+        db.commit()
+
+    return {"status": "acknowledged"}
+
+@app.get("/incidents/{incident_id}")
+def get_incident(incident_id: int, db: Session = Depends(get_db)):
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(404, "Incident not found")
+    return incident
+
+@app.get("/incidents/{incident_id}/admins")
+def get_admins_by_incident(incident_id: int, role: str | None = None, db: Session = Depends(get_db)):
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(404, "Incident not found")
+    q = (
+        db.query(Admin)
+        .join(ServiceAdmin, ServiceAdmin.admin_id == Admin.id)
+        .filter(ServiceAdmin.service_id == incident.service_id)
+    )
+    if role:
+        q = q.filter(ServiceAdmin.role == role)
+    return q.all()
+
+@app.get("/incidents/{incident_id}/notified-admins")
+def get_notified_admins(incident_id: int, db: Session = Depends(get_db)):
+    admins = (
+        db.query(Admin)
+        .join(ContactAttempt, ContactAttempt.admin_id == Admin.id)
+        .filter(ContactAttempt.incident_id == incident_id)
+        .distinct()
+        .all()
+    )
+    return admins

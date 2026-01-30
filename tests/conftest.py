@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 from api.main import app
 from api import db as db_module
-from utils.models import Base, Service, Admin, ServiceAdmin
+from utils.models import Base, Service, Admin, ServiceAdmin, Incident, ContactAttempt
 
 # -----------------------------
 # Fixtures
@@ -30,8 +30,8 @@ def db_session(tmp_path):
 
     session: Session = TestingSessionLocal()
     try:
-        # Pre-populate test data
-        session.add_all([
+        # Admins
+        admins = [
             Admin(name="Alice", contact_type="email", contact_value="alice@test.com"),
             Admin(name="Bob", contact_type="email", contact_value="bob@test.com"),
             Admin(name="Hanna", contact_type="email", contact_value="hanna@test.com"),
@@ -56,12 +56,35 @@ def db_session(tmp_path):
             ),
         ])
         session.commit()
+
+        # ServiceAdmins
         session.add_all([
-            ServiceAdmin(service_id=1, admin_id=1, role="primary"),
-            ServiceAdmin(service_id=1, admin_id=2, role="secondary"),
-            ServiceAdmin(service_id=2, admin_id=3, role="primary"),
-            ServiceAdmin(service_id=2, admin_id=4, role="secondary"),
+            ServiceAdmin(service_id=services[0].id, admin_id=admins[0].id, role="primary"),
+            ServiceAdmin(service_id=services[0].id, admin_id=admins[1].id, role="secondary"),
+            ServiceAdmin(service_id=services[1].id, admin_id=admins[2].id, role="primary"),
+            ServiceAdmin(service_id=services[1].id, admin_id=admins[3].id, role="secondary"),
         ])
+        session.commit()
+
+        # Incidents
+        incident = Incident(
+            service_id=services[0].id,
+            status="registered"
+        )
+        session.add(incident)
+        session.commit()
+        session.refresh(incident)
+
+        # ContactAttempts
+        attempt = ContactAttempt(
+            incident_id=incident.id,
+            admin_id=admins[0].id,
+            channel="email",
+            attempted_at=datetime.now(timezone.utc),
+            result="sent",
+            response_at=None
+        )
+        session.add(attempt)
         session.commit()
 
         yield session
