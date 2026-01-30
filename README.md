@@ -80,3 +80,10 @@ cp .env.example .env
 | JWT_SECRET               | Secret key for signing ACK tokens          | long-random-string-here      |
 | JWT_EXP_MINUTES          | Token expiration time in minutes           | 15 (default)                 |
 | ESCALATION_DELAY_SECONDS | Delay before escalating to secondary admin | 300 (default)              |
+
+
+## How to initialize the UI
+
+```
+gunicorn --bind localhost:5000 ui.app:app
+```

@@ -23,7 +23,6 @@ class MonitoringEngine:
         while True:
             try:
                 services = await self.fetch_due_services()
-                print(services)
                 tasks = [
                     IPStatusCollector(
                         service=s,

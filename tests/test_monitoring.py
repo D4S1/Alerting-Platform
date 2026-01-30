@@ -11,7 +11,8 @@ def service():
         "id": 1,
         "IP": "1.1.1.1",
         "frequency_seconds": 10,
-        "alerting_window_npings": 3,
+        "alerting_window_npings": 10,
+        "failure_threshold": 3
     }
 
 
