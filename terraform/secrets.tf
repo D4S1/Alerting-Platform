@@ -1,16 +1,20 @@
 
 resource "google_secret_manager_secret" "db_host" {
   secret_id = "DB_HOST"
-  replication { auto {} }
+  replication {
+  auto {}
+}
 }
 resource "google_secret_manager_secret_version" "db_host_v" {
   secret = google_secret_manager_secret.db_host.id
-  secret_data = google_sql_database_instance.postgres.connection_name
+  secret_data = "/cloudsql/${google_sql_database_instance.postgres.connection_name}"
 }
 
 resource "google_secret_manager_secret" "db_user" {
   secret_id = "DB_USER"
-  replication { auto {} }
+  replication {
+  auto {}
+}
 }
 resource "google_secret_manager_secret_version" "db_user_v" {
   secret = google_secret_manager_secret.db_user.id
@@ -19,7 +23,9 @@ resource "google_secret_manager_secret_version" "db_user_v" {
 
 resource "google_secret_manager_secret" "db_password" {
   secret_id = "DB_PASSWORD"
-  replication { auto {} }
+  replication {
+  auto {}
+}
 }
 resource "google_secret_manager_secret_version" "db_password_v" {
   secret = google_secret_manager_secret.db_password.id
@@ -28,7 +34,9 @@ resource "google_secret_manager_secret_version" "db_password_v" {
 
 resource "google_secret_manager_secret" "db_name" {
   secret_id = "DB_NAME"
-  replication { auto {} }
+  replication {
+  auto {}
+}
 }
 resource "google_secret_manager_secret_version" "db_name_v" {
   secret = google_secret_manager_secret.db_name.id
