@@ -209,4 +209,5 @@ __marimo__/
 
 # CUSTOM
 *.db
+.vscode/
 notification_module/notification_engine_previous.py
