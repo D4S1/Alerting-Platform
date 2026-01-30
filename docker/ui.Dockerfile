@@ -5,4 +5,4 @@ WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD sh -c "gunicorn --bind 0.0.0.0:$PORT ui.app:app"
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "ui.app:app"]
