@@ -21,30 +21,30 @@ resource "google_cloud_run_service" "notification" {
         # SMTP secrets
         env {
           name = "SMTP_HOST"
-          value_source {
+          value_from {
             secret_key_ref {
-              secret  = google_secret_manager_secret.smtp_host.secret_id
-              version = "latest"
+              name  = google_secret_manager_secret.smtp_host.secret_id
+              key = "SMTP_HOST"
             }
           }
         }
 
         env {
           name = "SMTP_PORT"
-          value_source {
+          value_from {
             secret_key_ref {
-              secret  = google_secret_manager_secret.smtp_port.secret_id
-              version = "latest"
+              name  = google_secret_manager_secret.smtp_port.secret_id
+              key = "SMTP_PORT"
             }
           }
         }
 
         env {
           name = "SMTP_FROM"
-          value_source {
+          value_from {
             secret_key_ref {
-              secret  = google_secret_manager_secret.smtp_from.secret_id
-              version = "latest"
+              name  = google_secret_manager_secret.smtp_from.secret_id
+              key = "SMTP_FROM"
             }
           }
         }
