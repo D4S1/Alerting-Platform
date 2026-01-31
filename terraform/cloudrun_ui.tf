@@ -21,3 +21,11 @@ resource "google_cloud_run_service" "ui" {
     latest_revision = true
   }
 }
+
+resource "google_cloud_run_service_iam_member" "ui_public" {
+  service  = google_cloud_run_service.ui.name
+  location = google_cloud_run_service.ui.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+

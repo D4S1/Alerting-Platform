@@ -9,8 +9,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the app
-COPY . .
-
+COPY requirements.txt .
+COPY notification_module .
 # Set environment variables (can also be set in Cloud Run console)
 ENV PYTHONUNBUFFERED True
 
