@@ -212,7 +212,7 @@ __marimo__/
 .vscode/
 notification_module/notification_engine_previous.py
 
-
+terraform/.terraform
 .terraform/
 
 # .tfstate files
