@@ -1,4 +1,3 @@
-
 resource "google_cloud_run_service" "api" {
   name = "alerting-api"
   location = var.region
