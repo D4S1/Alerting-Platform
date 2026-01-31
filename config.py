@@ -14,7 +14,6 @@ class SMTPConfig:
 
 class JWTConfig:
     JWT_SECRET = os.getenv("JWT_SECRET")
-    ESCALATION_DELAY_SECONDS = int(os.getenv("ESCALATION_DELAY_SECONDS", "300"))
 
 
 def validate():
