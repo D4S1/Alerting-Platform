@@ -50,7 +50,37 @@ resource "google_secret_manager_secret" "smtp_username" {
 
 resource "google_secret_manager_secret_version" "smtp_username_v" {
   secret      = google_secret_manager_secret.smtp_username.id
-  secret_data = var.smtp_username
+  secret_data = "MS_vpJOU2@test-y7zpl983od545vx6.mlsender.net"
+}
+
+resource "google_secret_manager_secret" "smtp_host" {
+  secret_id = "SMTP_HOST"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "smtp_host_v" {
+  secret      = google_secret_manager_secret.smtp_host.id
+  secret_data = "smtp.mailersend.net"
+}
+
+resource "google_secret_manager_secret" "smtp_port" {
+  secret_id = "SMTP_PORT"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "smtp_port_v" {
+  secret      = google_secret_manager_secret.smtp_port.id
+  secret_data = "587"
+}
+
+resource "google_secret_manager_secret" "smtp_from" {
+  secret_id = "SMTP_FROM"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "smtp_from_v" {
+  secret      = google_secret_manager_secret.smtp_from.id
+  secret_data = "MS_vpJOU2@test-y7zpl983od545vx6.mlsender.net"
 }
 
 resource "google_secret_manager_secret" "smtp_password" {
@@ -72,3 +102,14 @@ resource "google_secret_manager_secret_version" "jwt_secret_v" {
   secret      = google_secret_manager_secret.jwt_secret.id
   secret_data = var.jwt_secret
 }
+
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = true
+}
+
+resource "google_secret_manager_secret_version" "jwt_secret_v" {
+  secret      = google_secret_manager_secret.jwt_secret.id
+  secret_data = random_password.jwt_secret.result
+}
+

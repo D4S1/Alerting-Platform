@@ -18,32 +18,37 @@ resource "google_cloud_run_service" "notification" {
           value = google_pubsub_topic.alerting.id
         }
 
+        # SMTP secrets
         env {
-          name  = "SMTP_HOST"
-          value = var.smtp_host
+          name = "SMTP_HOST"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.smtp_host.secret_id
+              version = "latest"
+            }
+          }
         }
 
         env {
-          name  = "SMTP_PORT"
-          value = tostring(var.smtp_port)
+          name = "SMTP_PORT"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.smtp_port.secret_id
+              version = "latest"
+            }
+          }
         }
 
         env {
-          name  = "SMTP_FROM"
-          value = var.smtp_from
+          name = "SMTP_FROM"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.smtp_from.secret_id
+              version = "latest"
+            }
+          }
         }
 
-        env {
-          name  = "JWT_EXP_MINUTES"
-          value = tostring(var.jwt_exp_minutes)
-        }
-
-        env {
-          name  = "ESCALATION_DELAY_SECONDS"
-          value = tostring(var.escalation_delay_seconds)
-        }
-
-        # Secrets
         env {
           name = "SMTP_USERNAME"
           value_source {
