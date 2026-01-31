@@ -6,20 +6,28 @@ from notification_module.mailer import Mailer
 
 app = Flask(__name__)
 
-# Initialize components
+# -----------------------------
+# Component intitialization
+# -----------------------------
+
 api_client = NotificationApiClient(base_url=os.getenv("API_BASE_URL"))
 mailer = Mailer()
 engine = NotificationEngine(
     api=api_client, 
     mailer=mailer,
+    esc_delay_seconds=300,
     project_id=os.getenv("GCP_PROJECT_ID"),
-    location=os.getenv("GCP_LOCATION", "europe-west1"),
+    location=os.getenv("GCP_LOCATION", "europe-cemtral2"),
     queue=os.getenv("GCP_QUEUE_NAME", "escalation-queue")
 )
 
+# -----------------------------
+# Flask endpoints
+# -----------------------------
+
 @app.route("/event", methods=["POST"])
 def handle_pubsub_event():
-    """Endpoint dla nowych incydentów (np. z Pub/Sub push)"""
+    """Endpoint for new incidents (e.g. from Pub/Sub push)"""
     event = request.get_json()
     if not event:
         return "No payload", 400
@@ -29,7 +37,7 @@ def handle_pubsub_event():
 
 @app.route("/escalate", methods=["POST"])
 def handle_escalation():
-    """Endpoint wywoływany przez Cloud Tasks po X minutach"""
+    """Endpoint called by Cloud Tasks after escalation delay to check for acknowledgment"""
     data = request.get_json()
     incident_id = data.get("incident_id")
     
@@ -40,5 +48,5 @@ def handle_escalation():
     return "Escalation check completed", 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # cloud run uses PORT env variable
+    port = int(os.environ.get("PORT", 8080))  # PORT env variable for Cloud Run
     app.run(host="0.0.0.0", port=port)

@@ -25,3 +25,8 @@ variable "smtp_password" {
   type      = string
   sensitive = true
 }
+
+variable "smtp_from" {
+  type      = string
+  sensitive = true
+}

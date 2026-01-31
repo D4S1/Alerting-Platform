@@ -26,9 +26,10 @@ class NotificationEngine:
         location: GCP location for Cloud Tasks.
         queue: Cloud Tasks queue name.
     """
-    def __init__(self, api: NotificationApiClient, mailer: Mailer, project_id: str, location: str, queue: str):
+    def __init__(self, api: NotificationApiClient, mailer: Mailer, esc_delay_seconds: int, project_id: str, location: str, queue: str):
         self.api = api
         self.mailer = mailer
+        self.esc_delay_seconds = esc_delay_seconds
         self.tasks_client = tasks_v2.CloudTasksClient()
         
         # Cloud Tasks configuration
@@ -108,7 +109,7 @@ class NotificationEngine:
         body = json.dumps(payload).encode()
 
         # Calculate scheduled time
-        d = datetime.now(timezone.utc) + timedelta(seconds=JWTConfig.ESCALATION_DELAY_SECONDS)
+        d = datetime.now(timezone.utc) + timedelta(seconds=self.esc_delay_seconds)
         timestamp = timestamp_pb2.Timestamp()
         timestamp.FromDatetime(d)
 
