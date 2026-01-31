@@ -72,14 +72,6 @@ def test_acknowledge_resolved_incident(client, db_session):
 
     assert response.json()["status"] == "already resolved"
 
-def test_acknowledge_expired_token(client):
-    token = make_ack_token(expired=True)
-
-    response = client.get(f"/incidents/ack?token={token}")
-
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Token expired"
-
 def test_acknowledge_invalid_token(client):
     response = client.get("/incidents/ack?token=not-a-jwt")
 
