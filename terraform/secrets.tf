@@ -93,16 +93,6 @@ resource "google_secret_manager_secret_version" "smtp_password_v" {
   secret_data = var.smtp_password
 }
 
-resource "google_secret_manager_secret" "jwt_secret" {
-  secret_id = "JWT_SECRET"
-  replication { auto {} }
-}
-
-resource "google_secret_manager_secret_version" "jwt_secret_v" {
-  secret      = google_secret_manager_secret.jwt_secret.id
-  secret_data = var.jwt_secret
-}
-
 resource "random_password" "jwt_secret" {
   length  = 64
   special = true
