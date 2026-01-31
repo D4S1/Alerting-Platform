@@ -11,7 +11,7 @@ class IPStatusCollector:
         self.service = service
         self.api_base_url = api_base_url.rstrip("/")
         self.pubsub_topic = pubsub_topic
-        self.publisher = None # publisher or pubsub_v1.PublisherClient()
+        self.publisher = publisher or pubsub_v1.PublisherClient()
 
         self.alerting_window_seconds = (
             self.service["alerting_window_npings"]
