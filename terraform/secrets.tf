@@ -42,3 +42,33 @@ resource "google_secret_manager_secret_version" "db_name_v" {
   secret = google_secret_manager_secret.db_name.id
   secret_data = "alerting"
 }
+
+resource "google_secret_manager_secret" "smtp_username" {
+  secret_id = "SMTP_USERNAME"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "smtp_username_v" {
+  secret      = google_secret_manager_secret.smtp_username.id
+  secret_data = var.smtp_username
+}
+
+resource "google_secret_manager_secret" "smtp_password" {
+  secret_id = "SMTP_PASSWORD"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "smtp_password_v" {
+  secret      = google_secret_manager_secret.smtp_password.id
+  secret_data = var.smtp_password
+}
+
+resource "google_secret_manager_secret" "jwt_secret" {
+  secret_id = "JWT_SECRET"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "jwt_secret_v" {
+  secret      = google_secret_manager_secret.jwt_secret.id
+  secret_data = var.jwt_secret
+}
