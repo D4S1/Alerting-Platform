@@ -1,5 +1,6 @@
 variable "project_id" {
   type = string
+  default = "irio-alerting"
 }
 
 variable "region" {
@@ -30,6 +31,7 @@ variable "ui_image" {
 variable "smtp_username" {
   type      = string
   sensitive = true
+  default = "your-email@gmail.com"
 }
 
 variable "smtp_password" {
@@ -54,6 +56,7 @@ variable "smtp_port" {
 
 variable "smtp_from" {
   type = string
+  default = "no-reply@twojadomena.pl"
 }
 
 variable "jwt_exp_minutes" {

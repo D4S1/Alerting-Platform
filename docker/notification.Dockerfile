@@ -17,7 +17,3 @@ ENV PYTHONUNBUFFERED=true
 # Command to run your notification app
 # -b 0.0.0.0:$PORT to bind to all interfaces on the port defined by Cloud Run
 CMD ["gunicorn", "--bind", ":${PORT}", "--workers", "1", "--threads", "8", "--timeout", "0", "main:app"]
-
-
-
-

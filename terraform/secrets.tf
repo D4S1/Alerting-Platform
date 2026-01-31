@@ -45,7 +45,9 @@ resource "google_secret_manager_secret_version" "db_name_v" {
 
 resource "google_secret_manager_secret" "smtp_username" {
   secret_id = "SMTP_USERNAME"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "smtp_username_v" {
@@ -55,7 +57,9 @@ resource "google_secret_manager_secret_version" "smtp_username_v" {
 
 resource "google_secret_manager_secret" "smtp_password" {
   secret_id = "SMTP_PASSWORD"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "smtp_password_v" {
@@ -65,7 +69,9 @@ resource "google_secret_manager_secret_version" "smtp_password_v" {
 
 resource "google_secret_manager_secret" "jwt_secret" {
   secret_id = "JWT_SECRET"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "jwt_secret_v" {
