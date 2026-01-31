@@ -57,7 +57,9 @@ resource "google_secret_manager_secret_version" "smtp_username_v" {
 
 resource "google_secret_manager_secret" "smtp_host" {
   secret_id = "SMTP_HOST"
-  replication { auto {} }
+  replication {
+  auto {}
+}
 }
 
 resource "google_secret_manager_secret_version" "smtp_host_v" {
@@ -67,7 +69,9 @@ resource "google_secret_manager_secret_version" "smtp_host_v" {
 
 resource "google_secret_manager_secret" "smtp_port" {
   secret_id = "SMTP_PORT"
-  replication { auto {} }
+  replication {
+  auto {}
+}
 }
 
 resource "google_secret_manager_secret_version" "smtp_port_v" {
@@ -77,7 +81,9 @@ resource "google_secret_manager_secret_version" "smtp_port_v" {
 
 resource "google_secret_manager_secret" "smtp_from" {
   secret_id = "SMTP_FROM"
-  replication { auto {} }
+  replication {
+  auto {}
+}
 }
 
 resource "google_secret_manager_secret_version" "smtp_from_v" {
@@ -97,6 +103,12 @@ resource "google_secret_manager_secret_version" "smtp_password_v" {
   secret_data = var.smtp_password
 }
 
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = true
+}
+
+# Create the secret in Secret Manager
 resource "google_secret_manager_secret" "jwt_secret" {
   secret_id = "JWT_SECRET"
   replication {
@@ -104,18 +116,8 @@ resource "google_secret_manager_secret" "jwt_secret" {
   }
 }
 
-resource "google_secret_manager_secret_version" "jwt_secret_v" {
-  secret      = google_secret_manager_secret.jwt_secret.id
-  secret_data = var.jwt_secret
-}
-
-resource "random_password" "jwt_secret" {
-  length  = 64
-  special = true
-}
-
-resource "google_secret_manager_secret_version" "jwt_secret_v" {
+# Store the generated secret in Secret Manager
+resource "google_secret_manager_secret_version" "jwt_secret_version" {
   secret      = google_secret_manager_secret.jwt_secret.id
   secret_data = random_password.jwt_secret.result
 }
-
