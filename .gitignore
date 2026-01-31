@@ -211,7 +211,6 @@ __marimo__/
 *.db
 .vscode/
 google-cloud-sdk/
-notification_module/notification_engine_previous.py
 
 
 terraform/.terraform/
