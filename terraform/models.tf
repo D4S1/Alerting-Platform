@@ -3,7 +3,9 @@ resource "google_cloud_run_v2_job" "db_init" {
   location   = var.region
   
   # Ensures IAM bindings exist before the job tries to access the secret
-  depends_on = [ google_secret_manager_secret_iam_member.api_access ]
+  depends_on = [ google_secret_manager_secret.db_url,
+                 google_secret_manager_secret.jwt_secret
+  ]
 
   template {
     template {
