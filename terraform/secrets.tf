@@ -52,7 +52,7 @@ resource "google_secret_manager_secret" "smtp_username" {
 
 resource "google_secret_manager_secret_version" "smtp_username_v" {
   secret      = google_secret_manager_secret.smtp_username.id
-  secret_data = "MS_vpJOU2@test-y7zpl983od545vx6.mlsender.net"
+  secret_data = var.smtp_from
 }
 
 resource "google_secret_manager_secret" "smtp_host" {
@@ -88,7 +88,7 @@ resource "google_secret_manager_secret" "smtp_from" {
 
 resource "google_secret_manager_secret_version" "smtp_from_v" {
   secret      = google_secret_manager_secret.smtp_from.id
-  secret_data = "MS_vpJOU2@test-y7zpl983od545vx6.mlsender.net"
+  secret_data = var.smtp_from
 }
 
 resource "google_secret_manager_secret" "smtp_password" {

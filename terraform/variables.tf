@@ -55,8 +55,8 @@ variable "smtp_port" {
 }
 
 variable "smtp_from" {
-  type = string
-  default = "no-reply@twojadomena.pl"
+  type      = string
+  sensitive = true
 }
 
 variable "jwt_exp_minutes" {
@@ -68,4 +68,3 @@ variable "escalation_delay_seconds" {
   type    = number
   default = 300
 }
-
