@@ -10,15 +10,15 @@ app = Flask(__name__)
 # Component intitialization
 # -----------------------------
 
-api_client = NotificationApiClient(base_url=os.getenv("API_BASE_URL"))
+api_client = NotificationApiClient(base_url=os.environ.get("API_BASE_URL"))
 mailer = Mailer()
 engine = NotificationEngine(
     api=api_client, 
     mailer=mailer,
     esc_delay_seconds=300,
-    project_id=os.getenv("GCP_PROJECT_ID"),
-    location=os.getenv("GCP_LOCATION", "europe-cemtral2"),
-    queue=os.getenv("GCP_QUEUE_NAME", "escalation-queue")
+    project_id=os.environ.get("GCP_PROJECT_ID"),
+    location=os.environ.get("GCP_LOCATION", "europe-cemtral2"),
+    queue=os.environ.get("GCP_QUEUE_NAME", "escalation-queue")
 )
 
 # -----------------------------

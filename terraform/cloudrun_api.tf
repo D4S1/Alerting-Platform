@@ -1,48 +1,31 @@
 resource "google_cloud_run_service" "api" {
+  depends_on = [google_secret_manager_secret_iam_member.api_access, google_cloud_run_v2_job.db_init]
   name     = "alerting-api"
   location = var.region
 
   template {
     spec {
+      service_account_name = google_service_account.api.email
+
       containers {
         image = var.api_image
 
         env {
-          name = "db_user"
+          name = "db_url"
           value_from {
             secret_key_ref {
-              name = google_secret_manager_secret.db_user.id
-              key    = "db_user"
+              name = google_secret_manager_secret.db_url.secret_id
+              key = "latest"
             }
           }
         }
 
         env {
-          name = "db_password"
+          name = "jwt_secret"
           value_from {
             secret_key_ref {
-              name = google_secret_manager_secret.db_password.id
-              key    = "db_password"
-            }
-          }
-        }
-
-        env {
-          name = "db_name"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.db_name.id
-              key    = "db_name"
-            }
-          }
-        }
-
-        env {
-          name = "db_host"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.db_host.id
-              key    = "db_host"
+              name = google_secret_manager_secret.jwt_secret.secret_id
+              key = "latest"
             }
           }
         }

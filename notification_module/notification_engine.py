@@ -3,11 +3,14 @@ import jwt
 from google.cloud import tasks_v2
 from datetime import datetime, timedelta, timezone
 from google.protobuf import timestamp_pb2
+import os
 
-from config import JWTConfig
 from notification_module.api_client import NotificationApiClient
 from notification_module.mailer import Mailer
 from utils.models import Admin
+
+
+JWT_SECRET = os.environ.get('jwt_secret', '')
 
 
 class NotificationEngine:
@@ -98,7 +101,7 @@ class NotificationEngine:
             "incident_id": incident_id,
             "admin_id": admin_id,
         }
-        return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
+        return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
     def _schedule_escalation(self, incident_id: int):
         """

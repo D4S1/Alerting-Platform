@@ -218,6 +218,8 @@ terraform/.terraform/
 # .tfstate files
 terraform/*.tfstate
 terraform/*.tfstate.*
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
 
 # Crash log files
 terraform/crash.log

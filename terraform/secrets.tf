@@ -1,47 +1,23 @@
 
-resource "google_secret_manager_secret" "db_host" {
-  secret_id = "db_host"
+resource "google_secret_manager_secret" "db_url" {
+  secret_id = "db_url"
   replication {
-  auto {}
-}
-}
-resource "google_secret_manager_secret_version" "db_host_v" {
-  secret = google_secret_manager_secret.db_host.id
-  secret_data = "/cloudsql/${google_sql_database_instance.postgres.connection_name}"
+    auto {}
+  }
 }
 
-resource "google_secret_manager_secret" "db_user" {
-  secret_id = "db_user"
-  replication {
-  auto {}
-}
-}
-resource "google_secret_manager_secret_version" "db_user_v" {
-  secret = google_secret_manager_secret.db_user.id
-  secret_data = "alerting_user"
+resource "google_secret_manager_secret_version" "db_url_v" {
+  secret = google_secret_manager_secret.db_url.id
+
+  secret_data = format(
+    "postgresql+psycopg2://%s:%s@/%s?host=/cloudsql/%s",
+    google_sql_user.user.name,
+    random_password.db_password.result,
+    google_sql_database.db.name,
+    google_sql_database_instance.postgres.connection_name
+  )
 }
 
-resource "google_secret_manager_secret" "db_password" {
-  secret_id = "db_password"
-  replication {
-  auto {}
-}
-}
-resource "google_secret_manager_secret_version" "db_password_v" {
-  secret = google_secret_manager_secret.db_password.id
-  secret_data = random_password.db_password.result
-}
-
-resource "google_secret_manager_secret" "db_name" {
-  secret_id = "db_name"
-  replication {
-  auto {}
-}
-}
-resource "google_secret_manager_secret_version" "db_name_v" {
-  secret = google_secret_manager_secret.db_name.id
-  secret_data = "alerting"
-}
 
 resource "google_secret_manager_secret" "smtp_username" {
   secret_id = "smtp_username"
@@ -117,7 +93,7 @@ resource "google_secret_manager_secret" "jwt_secret" {
 }
 
 # Store the generated secret in Secret Manager
-resource "google_secret_manager_secret_version" "jwt_secret_version" {
+resource "google_secret_manager_secret_version" "jwt_secret_v" {
   secret      = google_secret_manager_secret.jwt_secret.id
   secret_data = random_password.jwt_secret.result
 }
