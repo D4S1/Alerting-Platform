@@ -210,7 +210,7 @@ __marimo__/
 # CUSTOM
 *.db
 .vscode/
-notification_module/notification_engine_previous.py
+google-cloud-sdk/
 
 
 terraform/.terraform/
@@ -247,7 +247,6 @@ terraform/.terraform.tfstate.lock.info
 # example: *tfplan*
 
 # Ignore CLI configuration files
-google-cloud-sdk/
 notification_module/notification_engine_previous.py
 terraform/.terraformrc
 terraform/terraform.rc
