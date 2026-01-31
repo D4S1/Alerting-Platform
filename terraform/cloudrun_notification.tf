@@ -46,30 +46,30 @@ resource "google_cloud_run_service" "notification" {
         # Secrets
         env {
           name = "SMTP_USERNAME"
-          value_source {
+          value_from {
             secret_key_ref {
-              secret  = google_secret_manager_secret.smtp_username.secret_id
-              version = "latest"
+              name  = google_secret_manager_secret.smtp_username.secret_id
+              key = "SMTP_USERNAME"
             }
           }
         }
 
         env {
           name = "SMTP_PASSWORD"
-          value_source {
+          value_from {
             secret_key_ref {
-              secret  = google_secret_manager_secret.smtp_password.secret_id
-              version = "latest"
+              name  = google_secret_manager_secret.smtp_password.secret_id
+              key = "SMTP_PASSWORD"
             }
           }
         }
 
         env {
           name = "JWT_SECRET"
-          value_source {
+          value_from {
             secret_key_ref {
-              secret  = google_secret_manager_secret.jwt_secret.secret_id
-              version = "latest"
+              name  = google_secret_manager_secret.jwt_secret.secret_id
+              key = "JWT_SECRET"
             }
           }
         }
