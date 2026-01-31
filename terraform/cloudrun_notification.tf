@@ -24,7 +24,7 @@ resource "google_cloud_run_service" "notification" {
           value_from {
             secret_key_ref {
               name  = google_secret_manager_secret.smtp_host.secret_id
-              key = "SMTP_HOST"
+              key = "smtp_host"
             }
           }
         }
@@ -34,7 +34,7 @@ resource "google_cloud_run_service" "notification" {
           value_from {
             secret_key_ref {
               name  = google_secret_manager_secret.smtp_port.secret_id
-              key = "SMTP_PORT"
+              key = "smtp_port"
             }
           }
         }
@@ -44,7 +44,7 @@ resource "google_cloud_run_service" "notification" {
           value_from {
             secret_key_ref {
               name  = google_secret_manager_secret.smtp_from.secret_id
-              key = "SMTP_FROM"
+              key = "smtp_from"
             }
           }
         }
@@ -54,7 +54,7 @@ resource "google_cloud_run_service" "notification" {
           value_from {
             secret_key_ref {
               name  = google_secret_manager_secret.smtp_username.secret_id
-              key = "SMTP_USERNAME"
+              key = "smtp_username"
             }
           }
         }
@@ -64,7 +64,7 @@ resource "google_cloud_run_service" "notification" {
           value_from {
             secret_key_ref {
               name  = google_secret_manager_secret.smtp_password.secret_id
-              key = "SMTP_PASSWORD"
+              key = "smtp_password"
             }
           }
         }
@@ -74,7 +74,7 @@ resource "google_cloud_run_service" "notification" {
           value_from {
             secret_key_ref {
               name  = google_secret_manager_secret.jwt_secret.secret_id
-              key = "JWT_SECRET"
+              key = "jwt_secret"
             }
           }
         }

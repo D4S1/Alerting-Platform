@@ -1,6 +1,6 @@
 
 resource "google_secret_manager_secret" "db_host" {
-  secret_id = "DB_HOST"
+  secret_id = "db_host"
   replication {
   auto {}
 }
@@ -11,7 +11,7 @@ resource "google_secret_manager_secret_version" "db_host_v" {
 }
 
 resource "google_secret_manager_secret" "db_user" {
-  secret_id = "DB_USER"
+  secret_id = "db_user"
   replication {
   auto {}
 }
@@ -22,7 +22,7 @@ resource "google_secret_manager_secret_version" "db_user_v" {
 }
 
 resource "google_secret_manager_secret" "db_password" {
-  secret_id = "DB_PASSWORD"
+  secret_id = "db_password"
   replication {
   auto {}
 }
@@ -33,7 +33,7 @@ resource "google_secret_manager_secret_version" "db_password_v" {
 }
 
 resource "google_secret_manager_secret" "db_name" {
-  secret_id = "DB_NAME"
+  secret_id = "db_name"
   replication {
   auto {}
 }
@@ -44,7 +44,7 @@ resource "google_secret_manager_secret_version" "db_name_v" {
 }
 
 resource "google_secret_manager_secret" "smtp_username" {
-  secret_id = "SMTP_USERNAME"
+  secret_id = "smtp_username"
   replication {
     auto {}
   }
@@ -56,7 +56,7 @@ resource "google_secret_manager_secret_version" "smtp_username_v" {
 }
 
 resource "google_secret_manager_secret" "smtp_host" {
-  secret_id = "SMTP_HOST"
+  secret_id = "smtp_host"
   replication {
   auto {}
 }
@@ -68,7 +68,7 @@ resource "google_secret_manager_secret_version" "smtp_host_v" {
 }
 
 resource "google_secret_manager_secret" "smtp_port" {
-  secret_id = "SMTP_PORT"
+  secret_id = "smtp_port"
   replication {
   auto {}
 }
@@ -80,7 +80,7 @@ resource "google_secret_manager_secret_version" "smtp_port_v" {
 }
 
 resource "google_secret_manager_secret" "smtp_from" {
-  secret_id = "SMTP_FROM"
+  secret_id = "smtp_from"
   replication {
   auto {}
 }
@@ -92,7 +92,7 @@ resource "google_secret_manager_secret_version" "smtp_from_v" {
 }
 
 resource "google_secret_manager_secret" "smtp_password" {
-  secret_id = "SMTP_PASSWORD"
+  secret_id = "smtp_password"
   replication {
     auto {}
   }
@@ -110,7 +110,7 @@ resource "random_password" "jwt_secret" {
 
 # Create the secret in Secret Manager
 resource "google_secret_manager_secret" "jwt_secret" {
-  secret_id = "JWT_SECRET"
+  secret_id = "jwt_secret"
   replication {
     auto {}
   }
