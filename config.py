@@ -14,7 +14,6 @@ class SMTPConfig:
 
 class JWTConfig:
     JWT_SECRET = os.getenv("JWT_SECRET")
-    JWT_EXP_MINUTES = int(os.getenv("JWT_EXP_MINUTES", "15"))
     ESCALATION_DELAY_SECONDS = int(os.getenv("ESCALATION_DELAY_SECONDS", "300"))
 
 
