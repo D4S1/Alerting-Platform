@@ -22,14 +22,6 @@ if __name__ == "__main__":
     if args.db_url:
         db_url = args.db_url
     else:
-        db_user = os.environ["DB_USER"]
-        db_pass = os.environ["DB_PASSWORD"]
-        db_name = os.environ["DB_NAME"]
-        db_host = os.environ["DB_HOST"]  # /cloudsql/PROJECT:REGION:INSTANCE
-
-        db_url = (
-            f"postgresql+psycopg2://{db_user}:{db_pass}"
-            f"@{db_host}/{db_name}"
-        )
+        db_url = os.environ.get("db_url", "")
 
     init_db(db_url)

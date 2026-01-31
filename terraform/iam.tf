@@ -10,6 +10,13 @@ resource "google_service_account" "notification" {
   display_name = "Service Account for Notifications"
 }
 
+
+resource "google_service_account" "invoker" {
+  account_id   = "invoker-sa"
+  display_name = "Invoker Cloud Run Service Account"
+}
+
+
 # Manual Access Service Account
 resource "google_service_account" "manual" {
   account_id   = "manual-sa"
@@ -17,12 +24,14 @@ resource "google_service_account" "manual" {
 }
 
 # IAM: API -> DB Secrets
-resource "google_secret_manager_secret_iam_member" "api_db_access" {
+resource "google_secret_manager_secret_iam_member" "api_access" {
+  depends_on = [ google_secret_manager_secret.db_url,
+                 google_secret_manager_secret.jwt_secret 
+  ]
+  
   for_each = {
-    db_username = google_secret_manager_secret.db_user.id
-    db_password = google_secret_manager_secret.db_password.id
-    db_host     = google_secret_manager_secret.db_host.id
-    db_name     = google_secret_manager_secret.db_name.id
+    db_url     = google_secret_manager_secret.db_url.secret_id
+    jwt_secret = google_secret_manager_secret.jwt_secret.secret_id
   }
 
   secret_id = each.value
@@ -33,12 +42,12 @@ resource "google_secret_manager_secret_iam_member" "api_db_access" {
 # IAM: Notification -> SMTP + JWT Secrets
 resource "google_secret_manager_secret_iam_member" "notification_access" {
   for_each = {
-    smtp_host     = google_secret_manager_secret.smtp_host.id
-    smtp_port     = google_secret_manager_secret.smtp_port.id
-    smtp_from     = google_secret_manager_secret.smtp_from.id
-    smtp_username = google_secret_manager_secret.smtp_username.id
-    smtp_password = google_secret_manager_secret.smtp_password.id
-    jwt_secret    = google_secret_manager_secret.jwt_secret.id
+    smtp_host     = google_secret_manager_secret.smtp_host.secret_id
+    smtp_port     = google_secret_manager_secret.smtp_port.secret_id
+    smtp_from     = google_secret_manager_secret.smtp_from.secret_id
+    smtp_username = google_secret_manager_secret.smtp_username.secret_id
+    smtp_password = google_secret_manager_secret.smtp_password.secret_id
+    jwt_secret    = google_secret_manager_secret.jwt_secret.secret_id
   }
 
   secret_id = each.value
@@ -50,19 +59,39 @@ resource "google_secret_manager_secret_iam_member" "notification_access" {
 # IAM: Manual Access -> All Secrets
 resource "google_secret_manager_secret_iam_member" "manual_access" {
   for_each = {
-    db_username     = google_secret_manager_secret.db_user.id
-    db_password     = google_secret_manager_secret.db_password.id
-    db_host         = google_secret_manager_secret.db_host.id
-    db_name         = google_secret_manager_secret.db_name.id
-    smtp_host       = google_secret_manager_secret.smtp_host.id
-    smtp_port       = google_secret_manager_secret.smtp_port.id
-    smtp_from       = google_secret_manager_secret.smtp_from.id
-    smtp_username   = google_secret_manager_secret.smtp_username.id
-    smtp_password   = google_secret_manager_secret.smtp_password.id
-    jwt_secret      = google_secret_manager_secret.jwt_secret.id
+    db_url          = google_secret_manager_secret.db_url.secret_id
+    smtp_host       = google_secret_manager_secret.smtp_host.secret_id
+    smtp_port       = google_secret_manager_secret.smtp_port.secret_id
+    smtp_from       = google_secret_manager_secret.smtp_from.secret_id
+    smtp_username   = google_secret_manager_secret.smtp_username.secret_id
+    smtp_password   = google_secret_manager_secret.smtp_password.secret_id
+    jwt_secret      = google_secret_manager_secret.jwt_secret.secret_id
   }
 
   secret_id = each.value
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.manual.email}"
+}
+
+
+resource "google_cloud_run_service_iam_member" "api_ui_monitoring_invoker" {
+  service  = google_cloud_run_service.api.name
+  location = google_cloud_run_service.api.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.invoker.email}"
+}
+
+resource "google_cloud_run_service_iam_member" "api_notification_invoker" {
+  service  = google_cloud_run_service.api.name
+  location = google_cloud_run_service.api.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.notification.email}"
+}
+
+
+resource "google_cloud_run_service_iam_member" "api_manual_invoker" {
+  service  = google_cloud_run_service.api.name
+  location = google_cloud_run_service.api.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.manual.email}"
 }

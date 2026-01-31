@@ -3,13 +3,16 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
+import os
 
 from api.db import get_db
 from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut, ContactAttemptCreate
 from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure, ContactAttempt
-from config import JWTConfig
+
 
 app = FastAPI(title="Monitoring API")
+
+JWT_SECRET = os.environ.get('jwt_secret', '')
 
 # -----------------------------
 # Services
@@ -297,7 +300,7 @@ def get_notified_admins(incident_id: int, db: Session = Depends(get_db)):
 def acknowledge_incident(token: str, db: Session = Depends(get_db)):
     # Decode token
     try:
-        payload = jwt.decode(token, JWTConfig.JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
     except ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Token expired")
     except InvalidTokenError:
