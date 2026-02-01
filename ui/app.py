@@ -97,7 +97,7 @@ def register():
                 return redirect(url_for('dashboard'))
             else:
                 # This helps you see why the API rejected the request
-                print(f"API Error {resp.status_code}: {resp.text}") # To pokaże prawdziwy błąd w logach
+                print(f"API Error {resp.status_code}: {resp.text}")
                 flash(f"API Error: {resp.status_code}", "danger")
                 error_detail = resp.json().get('detail', 'Unknown error')
                 flash(f"Registration failed: {error_detail}", "danger")
@@ -309,7 +309,6 @@ def delete_service(service_id):
         return redirect(url_for('index'))
     
     try:
-        # Call your FastAPI DELETE endpoint
         resp = requests.delete(f"{API_URL}/services/{service_id}", headers=get_headers(API_URL))
         
         if resp.status_code == 200:
@@ -331,7 +330,7 @@ def profile():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        # Update Contact Method
+        # Update contact method
         new_email = request.form.get('email')
         resp = requests.patch(
             f"{API_URL}/admins/{session['user_id']}",

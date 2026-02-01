@@ -1,4 +1,3 @@
-import os
 import requests
 import httpx
 
@@ -14,7 +13,7 @@ def _is_local(url: str) -> bool:
 # --- Version for Flask ---
 def get_headers(target_audience: str) -> dict:
     if _is_local(target_audience):
-        return {}
+        return {"Content-Type": "application/json"}
 
     try:
         resp = requests.get(
@@ -35,7 +34,7 @@ def get_headers(target_audience: str) -> dict:
 # --- Version for Asyncio ---
 async def get_headers_async(target_audience: str) -> dict:
     if _is_local(target_audience):
-        return {}
+        return {"Content-Type": "application/json"}
 
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
