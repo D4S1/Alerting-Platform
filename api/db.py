@@ -11,6 +11,8 @@ if SQLALCHEMY_DATABASE_URL:
         pool_pre_ping=True,
     )
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+else:
+    engine = None
 
 
 def get_db():
