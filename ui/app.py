@@ -68,7 +68,8 @@ def fetch_all_admins():
     try:
         resp = requests.get(f"{API_URL}/admins/", headers=get_headers())
         return resp.json() if resp.status_code == 200 else []
-    except:
+    except Exception as e:
+        print(f"Error loading admins: {e}")
         return []
 
 # --- Authentication Routes ---
@@ -239,7 +240,6 @@ def add_service():
 
     return render_template('add_service.html', admins=other_admins)
 
-
 @app.route('/service/<int:service_id>/edit', methods=['GET', 'POST'])
 def edit_service(service_id):
     if 'user_id' not in session:
@@ -253,17 +253,28 @@ def edit_service(service_id):
     service = resp_service.json()
 
     # 2. Fetch current admins for the service
-    resp_admins = requests.get(f"{API_URL}/services/{service_id}/admins", headers=get_headers())
-    if resp_admins.status_code != 200:
-        flash(f"Failed to fetch service admins: {resp_admins.text}", "danger")
-        return redirect(url_for('dashboard'))
-    
-    current_admins = resp_admins.json()
+    current_admins = {"primary": None, "secondary": None} # default values
+    try:
+        resp_admins = requests.get(f"{API_URL}/services/{service_id}/admins", headers=get_headers())
+        if resp_admins.status_code == 200:
+            data = resp_admins.json()
+            current_admins["primary"] = data.get("primary")
+            current_admins["secondary"] = data.get("secondary")
+            
+    except Exception as e:
+        print(f"Error loading admins: {e}")
 
     # 3. Fetch all other admins for dropdown (exclude current user)
     all_admins = fetch_all_admins()
 
     if request.method == 'POST':
+        # Get current admin ids
+        curr_prim = current_admins.get('primary')
+        curr_prim_id = curr_prim['id'] if curr_prim else -1
+        
+        curr_sec = current_admins.get('secondary')
+        curr_sec_id = curr_sec['id'] if curr_sec else -1
+
         # 4. Update service fields
         svc_payload = {
             "frequency_seconds": int(request.form.get('frequency_seconds')),
@@ -283,7 +294,8 @@ def edit_service(service_id):
         primary_admin_id = request.form.get('primary')
         secondary_admin_id = request.form.get('secondary')
 
-        if primary_admin_id and (current_admins.get('primary')['id'] != int(primary_admin_id)):
+        # Primary
+        if primary_admin_id and (curr_prim_id != int(primary_admin_id)):
             payload = {
                 "role": "primary",
                 "new_admin_id": int(primary_admin_id)
@@ -292,18 +304,26 @@ def edit_service(service_id):
             if resp_admin.status_code not in [200, 201]:
                 flash(f"Failed to update primary admin: {resp_admin.text}", "danger")
                 return redirect(url_for('edit_service', service_id=service_id))
+        
+        # Secondary
+        if secondary_admin_id and (curr_sec_id != int(secondary_admin_id)):
+            if curr_sec_id != -1:  # secondary admin existed: update them
+                payload = {
+                    "role": "secondary",
+                    "new_admin_id": int(secondary_admin_id)
+                }
+                resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
+            else:  # secondary admin didn't exist: create one
+                payload = {
+                    "service_id": service_id, 
+                    "role": "secondary", 
+                    "admin_id": int(secondary_admin_id)
+                }
+                resp_admin = requests.post(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
 
-        if secondary_admin_id and current_admins.get('secondary')['id'] != int(secondary_admin_id):
-            payload = {
-                "role": "secondary",
-                "new_admin_id": int(secondary_admin_id)
-            }
-
-            resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
             if resp_admin.status_code not in [200, 201]:
                 flash(f"Failed to update secondary admin: {resp_admin.text}", "danger")
                 return redirect(url_for('edit_service', service_id=service_id))
-            
 
         flash("Service and admins updated successfully.", "success")
         return redirect(url_for('dashboard'))
