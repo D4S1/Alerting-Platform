@@ -3,6 +3,7 @@ import asyncio
 import httpx
 from google.cloud import pubsub_v1
 from collector import IPStatusCollector
+from utils.auth import get_headers_async
 
 # Polling interval in seconds
 POLL_INTERVAL = 1
@@ -18,8 +19,9 @@ class MonitoringEngine:
 
     async def fetch_due_services(self):
         url = f"{self.api_base_url}/services/due"
+        headers = await get_headers_async(self.api_base_url)
         async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(url)
+            r = await client.get(url, headers=headers)
             r.raise_for_status()
             return await r.json()
 
