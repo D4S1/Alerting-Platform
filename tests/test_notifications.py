@@ -99,10 +99,7 @@ def test_notification_engine_logic(mock_mailer, mock_tasks_client):
     engine = NotificationEngine(
         api=api,
         mailer=mock_mailer,
-        esc_delay_seconds=1,
-        project_id="test-project",
-        location="europe-west1",
-        queue="notifications"
+        esc_delay_seconds=1
     )
 
     engine.handle_event({"type": "CREATE_INCIDENT", "incident_id": 123})
