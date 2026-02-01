@@ -1,5 +1,6 @@
 import pytest
-from unittest.mock import MagicMock, ANY
+from unittest.mock import MagicMock
+from flask import Flask
 
 from utils.models import Admin, Incident, ContactAttempt
 from notification_module.notification_engine import NotificationEngine
@@ -102,7 +103,15 @@ def test_notification_engine_logic(mock_mailer, mock_tasks_client):
         esc_delay_seconds=1
     )
 
-    engine.handle_event({"type": "CREATE_INCIDENT", "incident_id": 123})
+    # Mock http request context
+    app = Flask(__name__)
+    with app.test_request_context(base_url="https://test-host"):
+        engine.handle_event({"type": "CREATE_INCIDENT", "incident_id": 123})
 
     mock_mailer.send.assert_called_once()
     mock_tasks_client.create_task.assert_called_once()
+
+    args, kwargs = mock_tasks_client.create_task.call_args
+    created_task = kwargs['task']
+    # Check that the URL in the task contains the test host
+    assert "https://test-host/escalate" == created_task['http_request']['url']
