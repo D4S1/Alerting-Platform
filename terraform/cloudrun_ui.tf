@@ -1,4 +1,3 @@
-
 resource "google_cloud_run_service" "ui" {
   depends_on = [ google_cloud_run_service.api,
                 google_cloud_run_service_iam_member.api_ui_monitoring_invoker

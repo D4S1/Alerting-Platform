@@ -46,11 +46,6 @@ resource "google_cloud_run_service" "notification" {
         }
 
         env {
-          name  = "NOTIFICATION_URL"
-          value = google_cloud_run_service.notification.status[0].url
-        }
-
-        env {
           name  = "UI_URL"
           value = google_cloud_run_service.ui.status[0].url
         }
@@ -122,14 +117,5 @@ resource "google_cloud_run_service" "notification" {
   traffic {
     percent         = 100
     latest_revision = true
-  }
-}
-
-resource "google_cloud_tasks_queue" "notifications" {
-  name     = "notifications-queue"
-  location = var.region
-
-  retry_config {
-    max_attempts = 5
   }
 }

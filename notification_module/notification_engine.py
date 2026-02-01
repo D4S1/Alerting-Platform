@@ -4,6 +4,7 @@ from google.cloud import tasks_v2
 from datetime import datetime, timedelta, timezone
 from google.protobuf import timestamp_pb2
 import os
+from flask import request
 
 from notification_module.api_client import NotificationApiClient
 from notification_module.mailer import Mailer
@@ -39,7 +40,6 @@ class NotificationEngine:
         self.project_id = os.environ.get('PROJECT_ID')
         self.location = os.environ.get('LOCATION', 'europe-central2')
         self.queue = os.environ.get('QUEUE_NAME', 'notifications-queue')
-        self.notification_url = os.environ.get('NOTIFICATION_URL') 
         self.ui_url = os.environ.get('UI_URL')
         self.jwt_secret = os.environ.get('JWT_SECRET')
         self.queue_path = self.tasks_client.queue_path(self.project_id, self.location, self.queue)
@@ -121,23 +121,27 @@ class NotificationEngine:
         timestamp = timestamp_pb2.Timestamp()
         timestamp.FromDatetime(d)
 
+        # Get URL from current request
+        current_host = request.host
+        target_url = f"https://{current_host}/escalate"
+
         # Configure Cloud Tasks request
         task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST,
-                "url": f"{self.notification_url}/escalate",
+                "url": target_url,
                 "headers": {"Content-type": "application/json"},
                 "body": body,
                 "oidc_token": {
-                    "service_account_email": os.environ.get('SERVICE_ACCOUNT_EMAIL')
+                    "service_account_email": os.environ.get('SERVICE_ACCOUNT_EMAIL'),
+                    "audience": f"https://{current_host}" 
                 },
             },
             "schedule_time": timestamp,
         }
 
         self.tasks_client.create_task(parent=self.queue_path, task=task)
-        print(f"Scheduled escalation for incident {incident_id} via {self.notification_url}")
-
+        print(f"Scheduled escalation for incident {incident_id} via {target_url}")
 
     def handle_escalation_check(self, incident_id: int):
         """
