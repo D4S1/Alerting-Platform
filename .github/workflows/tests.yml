@@ -5,7 +5,6 @@
       SMTP_PORT: 587
       SMTP_USERNAME: test-user
       SMTP_PASSWORD: test-password
-      JWT_SECRET: "test-secret-key-12345"
     jobs:
       test:
         runs-on: ubuntu-latest
