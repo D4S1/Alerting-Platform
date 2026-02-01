@@ -10,7 +10,7 @@ resource "google_service_account" "notification" {
   display_name = "Service Account for Notifications"
 }
 
-
+# Invoker service account
 resource "google_service_account" "invoker" {
   account_id   = "invoker-sa"
   display_name = "Invoker Cloud Run Service Account"
@@ -94,4 +94,24 @@ resource "google_cloud_run_service_iam_member" "api_manual_invoker" {
   location = google_cloud_run_service.api.location
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.manual.email}"
+}
+
+# Cloud Tasks configuration
+resource "google_service_account_iam_member" "notification_tasks_impersonation" {
+  service_account_id = google_service_account.notification.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.notification.email}"
+}
+
+resource "google_cloud_run_service_iam_member" "notification_invoker_itself" {
+  service  = google_cloud_run_service.notification.name
+  location = google_cloud_run_service.notification.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.notification.email}"
+}
+
+resource "google_project_iam_member" "notification_task_creator" {
+  project = var.project_id
+  role    = "roles/cloudtasks.enqueuer"
+  member  = "serviceAccount:${google_service_account.notification.email}"
 }

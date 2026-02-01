@@ -29,15 +29,20 @@ class NotificationEngine:
         location: GCP location for Cloud Tasks.
         queue: Cloud Tasks queue name.
     """
-    def __init__(self, api: NotificationApiClient, mailer: Mailer, esc_delay_seconds: int, project_id: str, location: str, queue: str):
+    def __init__(self, api: NotificationApiClient, esc_delay_seconds: int, mailer: Mailer):
         self.api = api
         self.mailer = mailer
         self.esc_delay_seconds = esc_delay_seconds
         self.tasks_client = tasks_v2.CloudTasksClient()
-        
-        # Cloud Tasks configuration
-        self.queue_path = self.tasks_client.queue_path(project_id, location, queue)
-        self.service_url = "https://cloud-run-service.a.run.app/escalate" # TODO: replace with actual URL
+
+        # Getting configuration from environment variables injected by Terraforms
+        self.project_id = os.environ.get('PROJECT_ID')
+        self.location = os.environ.get('LOCATION', 'europe-central2')
+        self.queue = os.environ.get('QUEUE_NAME', 'notifications-queue')
+        self.notification_url = os.environ.get('NOTIFICATION_URL') 
+        self.ui_url = os.environ.get('UI_URL')
+        self.jwt_secret = os.environ.get('JWT_SECRET')
+        self.queue_path = self.tasks_client.queue_path(self.project_id, self.location, self.queue)
 
     def handle_event(self, event: dict):
         """
@@ -69,13 +74,13 @@ class NotificationEngine:
         token = self._generate_ack_token(
             incident_id=incident_id,
             admin_id=admin.id,
-            jwt_secret=JWT_SECRET
+            jwt_secret=self.jwt_secret
         )
 
         service_name = self.api.get_service_name(incident_id)
         service_str = f" {service_name}" if service_name else ""
 
-        link = f"https://monitoring.local/ack/{token}"
+        link = f"{self.ui_url}/ack/{token}"
 
         success = self.mailer.send(
             to=admin.contact_value,
@@ -108,7 +113,6 @@ class NotificationEngine:
         """
         Creates a task in Cloud Tasks that hits the /escalate endpoint after the delay.
         """
-        
         payload = {"incident_id": incident_id}
         body = json.dumps(payload).encode()
 
@@ -117,18 +121,22 @@ class NotificationEngine:
         timestamp = timestamp_pb2.Timestamp()
         timestamp.FromDatetime(d)
 
+        # Configure Cloud Tasks request
         task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST,
-                "url": self.service_url,
+                "url": f"{self.notification_url}/escalate",
                 "headers": {"Content-type": "application/json"},
                 "body": body,
+                "oidc_token": {
+                    "service_account_email": os.environ.get('SERVICE_ACCOUNT_EMAIL')
+                },
             },
             "schedule_time": timestamp,
         }
 
         self.tasks_client.create_task(parent=self.queue_path, task=task)
-        print(f"Scheduled escalation for incident {incident_id}")
+        print(f"Scheduled escalation for incident {incident_id} via {self.notification_url}")
 
 
     def handle_escalation_check(self, incident_id: int):
