@@ -6,7 +6,6 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 app = Flask(__name__)
 app.secret_key = 'dev_secret_key'  # Change for production
 
-
 @app.template_filter('datetimeformat')
 def datetimeformat(value):
     if not value:
@@ -26,14 +25,52 @@ def datetimeformat(value):
 # Configuration
 API_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
-# --- Helper Functions ---
+# --- Google authentification ---
+
+def get_google_auth_token():
+    """
+    Pobiera token OIDC z Metadata Server (tylko gdy działamy na Google Cloud Run).
+    Wymaga, aby 'API_URL' był poprawnym adresem docelowym (audience).
+    """
+    # Jeśli działamy lokalnie (np. API_URL to localhost), nie potrzebujemy tokena Google
+    if "localhost" in API_URL or "127.0.0.1" in API_URL:
+        return None
+
+    metadata_url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity"
+    params = {"audience": API_URL}
+    headers = {"Metadata-Flavor": "Google"}
+
+    try:
+        # Timeout jest ważny, żeby nie wisieć w nieskończoność
+        response = requests.get(metadata_url, params=params, headers=headers, timeout=2)
+        if response.status_code == 200:
+            return response.text.strip()
+        else:
+            print(f"Błąd pobierania tokena z metadanych: {response.status_code} {response.text}")
+    except Exception as e:
+        # To się zdarzy, jeśli odpalisz ten kod lokalnie, a URL nie będzie localhost
+        print(f"Nie można połączyć się z Metadata Server (czy działasz lokalnie?): {e}")
+    
+    return None
+
 def get_headers():
-    return {"Content-Type": "application/json"}
+    """Tworzy nagłówki z tokenem autoryzacyjnym."""
+    headers = {"Content-Type": "application/json"}
+    
+    token = get_google_auth_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+        
+    return headers
+
+# --- Helper Functions ---
+# def get_headers():
+#     return {"Content-Type": "application/json"}
 
 def fetch_all_admins():
     """Fetch list of admins for login and dropdowns."""
     try:
-        resp = requests.get(f"{API_URL}/admins/")
+        resp = requests.get(f"{API_URL}/admins/", headers=get_headers())
         return resp.json() if resp.status_code == 200 else []
     except:
         return []
@@ -51,7 +88,7 @@ def index():
 def login():
     email = request.form.get('email')
     
-    admin = requests.get(f"{API_URL}/admins/contact/{email}")
+    admin = requests.get(f"{API_URL}/admins/contact/{email}", headers=get_headers())
     user = admin.json() if admin.status_code == 200 else None
 
     if user:
@@ -84,7 +121,7 @@ def register():
         }
         
         try:
-            resp = requests.post(f"{API_URL}/admins/", json=payload)
+            resp = requests.post(f"{API_URL}/admins/", json=payload, headers=get_headers())
             print(resp.text)
             
             if resp.status_code == 200:
@@ -98,6 +135,8 @@ def register():
                 return redirect(url_for('dashboard'))
             else:
                 # This helps you see why the API rejected the request
+                print(f"API Error {resp.status_code}: {resp.text}") # To pokaże prawdziwy błąd w logach
+                flash(f"API Error: {resp.status_code}", "danger")
                 error_detail = resp.json().get('detail', 'Unknown error')
                 flash(f"Registration failed: {error_detail}", "danger")
                 
@@ -117,7 +156,7 @@ def dashboard():
     
     try:
         user_id = session['user_id']
-        resp = requests.get(f"{API_URL}/admins/{user_id}/services")
+        resp = requests.get(f"{API_URL}/admins/{user_id}/services", headers=get_headers())
         
         if resp.status_code == 200:
             services = resp.json()
@@ -129,7 +168,7 @@ def dashboard():
                     svc.update(resp_admins.json())
                 else:
                     svc.update({"primary": None, "secondary": None})
-                inc_resp = requests.get(f"{API_URL}/services/{svc['id']}/incidents")
+                inc_resp = requests.get(f"{API_URL}/services/{svc['id']}/incidents", headers=get_headers())
                 if inc_resp.status_code == 200:
                     svc['incidents'] = inc_resp.json()
                 else:
@@ -290,7 +329,7 @@ def delete_service(service_id):
     
     try:
         # Call your FastAPI DELETE endpoint
-        resp = requests.delete(f"{API_URL}/services/{service_id}")
+        resp = requests.delete(f"{API_URL}/services/{service_id}", headers=get_headers())
         
         if resp.status_code == 200:
             flash("Service successfully deleted.", "success")
