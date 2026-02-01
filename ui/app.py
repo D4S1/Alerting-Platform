@@ -25,15 +25,13 @@ def datetimeformat(value):
 # Configuration
 API_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
-# --- Google authentification ---
-
 def get_google_auth_token():
     """
-    Pobiera token OIDC z Metadata Server (tylko gdy działamy na Google Cloud Run).
-    Wymaga, aby 'API_URL' był poprawnym adresem docelowym (audience).
+    Retrieves the OIDC token from the Metadata Server (only when running on Google Cloud Run).
+    Requires 'API_URL' to be a valid target address (audience).
     """
-    # Jeśli działamy lokalnie (np. API_URL to localhost), nie potrzebujemy tokena Google
-    if "localhost" in API_URL or "127.0.0.1" in API_URL:
+
+    if "localhost" in API_URL or "127.0.0.1" in API_URL:  # if working local, Google token is not needed
         return None
 
     metadata_url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity"
@@ -41,20 +39,20 @@ def get_google_auth_token():
     headers = {"Metadata-Flavor": "Google"}
 
     try:
-        # Timeout jest ważny, żeby nie wisieć w nieskończoność
         response = requests.get(metadata_url, params=params, headers=headers, timeout=2)
         if response.status_code == 200:
             return response.text.strip()
         else:
-            print(f"Błąd pobierania tokena z metadanych: {response.status_code} {response.text}")
+            print(f"Error loading token from the metadata: {response.status_code} {response.text}")
     except Exception as e:
-        # To się zdarzy, jeśli odpalisz ten kod lokalnie, a URL nie będzie localhost
-        print(f"Nie można połączyć się z Metadata Server (czy działasz lokalnie?): {e}")
+        print(f"Cannot connect to Metadata Server (are you working locally?): {e}")
     
     return None
 
 def get_headers():
-    """Tworzy nagłówki z tokenem autoryzacyjnym."""
+    """
+    Creates headers with autorization token.
+    """
     headers = {"Content-Type": "application/json"}
     
     token = get_google_auth_token()
@@ -64,8 +62,6 @@ def get_headers():
     return headers
 
 # --- Helper Functions ---
-# def get_headers():
-#     return {"Content-Type": "application/json"}
 
 def fetch_all_admins():
     """Fetch list of admins for login and dropdowns."""
