@@ -1,9 +1,6 @@
 import pytest
-import jwt
-from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, ANY
 
-from config import JWTConfig
 from utils.models import Admin, Incident, ContactAttempt
 from notification_module.notification_engine import NotificationEngine
 from tests.conftest import make_ack_token
