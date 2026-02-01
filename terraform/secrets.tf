@@ -1,4 +1,3 @@
-
 resource "google_secret_manager_secret" "db_url" {
   secret_id = "db_url"
   replication {
@@ -11,9 +10,9 @@ resource "google_secret_manager_secret_version" "db_url_v" {
 
   secret_data = format(
     "postgresql+psycopg2://%s:%s@/%s?host=/cloudsql/%s",
-    google_sql_user.user.name,
-    random_password.db_password.result,
-    google_sql_database.db.name,
+    urlencode(google_sql_user.user.name),
+    urlencode(random_password.db_password.result),
+    urlencode(google_sql_database.db.name),
     google_sql_database_instance.postgres.connection_name
   )
 }

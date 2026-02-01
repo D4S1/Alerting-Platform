@@ -1,16 +1,26 @@
 from fastapi import FastAPI, HTTPException, Depends
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 import os
 
-from api.db import get_db
+from api.db import get_db, engine
+from utils.models import Base
 from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut, ContactAttemptCreate
 from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure, ContactAttempt
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        Base.metadata.create_all(bind=engine)  # Create tables if not present
+    except Exception as e:
+        print(f"Error initialising database:: {e}")
+    yield
 
-app = FastAPI(title="Monitoring API")
+
+app = FastAPI(title="Monitoring API", lifespan=lifespan)
 
 JWT_SECRET = os.environ.get('jwt_secret', 'test-secret-key')
 
