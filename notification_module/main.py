@@ -15,10 +15,7 @@ mailer = Mailer()
 engine = NotificationEngine(
     api=api_client, 
     mailer=mailer,
-    esc_delay_seconds=300,
-    project_id=os.environ.get("GCP_PROJECT_ID"),
-    location=os.environ.get("GCP_LOCATION", "europe-central2"),
-    queue=os.environ.get("GCP_QUEUE_NAME", "escalation-queue")
+    esc_delay_seconds=300
 )
 
 # -----------------------------
@@ -48,5 +45,4 @@ def handle_escalation():
     return "Escalation check completed", 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # PORT env variable for Cloud Run
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=8080)

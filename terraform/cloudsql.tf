@@ -1,4 +1,3 @@
-
 resource "google_sql_database_instance" "postgres" {
   name = "alerting-postgres"
   database_version = "POSTGRES_15"
