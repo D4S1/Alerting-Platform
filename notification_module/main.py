@@ -17,7 +17,7 @@ engine = NotificationEngine(
     mailer=mailer,
     esc_delay_seconds=300,
     project_id=os.environ.get("GCP_PROJECT_ID"),
-    location=os.environ.get("GCP_LOCATION", "europe-cemtral2"),
+    location=os.environ.get("GCP_LOCATION", "europe-central2"),
     queue=os.environ.get("GCP_QUEUE_NAME", "escalation-queue")
 )
 
