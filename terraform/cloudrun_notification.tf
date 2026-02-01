@@ -1,6 +1,7 @@
 resource "google_cloud_run_service" "notification" {
   depends_on = [google_secret_manager_secret_iam_member.notification_access,
                 google_pubsub_topic.alerting,
+                google_cloud_run_service.ui,
                 google_cloud_run_service_iam_member.api_notification_invoker
   ]
   
@@ -22,6 +23,36 @@ resource "google_cloud_run_service" "notification" {
         env {
           name  = "PUBSUB_TOPIC"
           value = google_pubsub_topic.alerting.id
+        }
+
+        env {
+          name  = "PROJECT_ID"
+          value = var.project_id
+        }
+
+        env {
+          name  = "LOCATION"
+          value = var.region
+        }
+
+        env {
+          name  = "QUEUE_NAME"
+          value = google_cloud_tasks_queue.notifications.name
+        }
+
+        env {
+          name  = "SERVICE_ACCOUNT_EMAIL"
+          value = google_service_account.notification.email
+        }
+
+        env {
+          name  = "NOTIFICATION_URL"
+          value = google_cloud_run_service.notification.status[0].url
+        }
+
+        env {
+          name  = "UI_URL"
+          value = google_cloud_run_service.ui.status[0].url
         }
 
         # SMTP secrets
@@ -91,5 +122,14 @@ resource "google_cloud_run_service" "notification" {
   traffic {
     percent         = 100
     latest_revision = true
+  }
+}
+
+resource "google_cloud_tasks_queue" "notifications" {
+  name     = "notifications-queue"
+  location = var.region
+
+  retry_config {
+    max_attempts = 5
   }
 }
