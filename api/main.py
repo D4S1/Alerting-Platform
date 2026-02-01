@@ -210,6 +210,8 @@ def get_all_admins(db: Session = Depends(get_db)):
 def get_admin_by_contact(value: str, db: Session = Depends(get_db)):
 
     admin = db.query(Admin).filter(Admin.contact_value == value).first()
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin not found")
     return admin
 
 
