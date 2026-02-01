@@ -7,6 +7,7 @@ WORKDIR /app
 # Install dependencies
 COPY requirements.txt .
 COPY notification_module/ ./notification_module/
+COPY utils/ ./utils/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set environment variables (can also be set in Cloud Run console)
