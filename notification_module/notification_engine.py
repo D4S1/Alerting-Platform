@@ -10,7 +10,7 @@ from notification_module.mailer import Mailer
 from utils.models import Admin
 
 
-JWT_SECRET = os.environ.get('jwt_secret', '')
+JWT_SECRET = os.environ.get('jwt_secret', 'test-secret-key')
 
 
 class NotificationEngine:
@@ -68,7 +68,8 @@ class NotificationEngine:
         """
         token = self._generate_ack_token(
             incident_id=incident_id,
-            admin_id=admin.id
+            admin_id=admin.id,
+            jwt_secret=JWT_SECRET
         )
 
         service_name = self.api.get_service_name(incident_id)
@@ -92,7 +93,7 @@ class NotificationEngine:
         if not escalation:
             self._schedule_escalation(incident_id)
 
-    def _generate_ack_token(self, incident_id: int, admin_id: int) -> str:
+    def _generate_ack_token(self, incident_id: int, admin_id: int, jwt_secret: str) -> str:
         """
         Generate a JWT acknowledgment token for an administrator.
         The token encodes the incident ID, administrator ID, and expiration time.
@@ -101,7 +102,7 @@ class NotificationEngine:
             "incident_id": incident_id,
             "admin_id": admin_id,
         }
-        return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+        return jwt.encode(payload, jwt_secret, algorithm="HS256")
 
     def _schedule_escalation(self, incident_id: int):
         """

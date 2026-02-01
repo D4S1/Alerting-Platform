@@ -12,7 +12,7 @@ from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure, Co
 
 app = FastAPI(title="Monitoring API")
 
-JWT_SECRET = os.environ.get('jwt_secret', '')
+JWT_SECRET = os.environ.get('jwt_secret', 'test-secret-key')
 
 # -----------------------------
 # Services
