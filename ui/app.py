@@ -2,6 +2,7 @@ import os
 import requests
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from utils.auth import get_headers
 
 app = Flask(__name__)
 app.secret_key = 'dev_secret_key'  # Change for production
@@ -25,48 +26,12 @@ def datetimeformat(value):
 # Configuration
 API_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
-def get_google_auth_token():
-    """
-    Retrieves the OIDC token from the Metadata Server (only when running on Google Cloud Run).
-    Requires 'API_URL' to be a valid target address (audience).
-    """
-
-    if "localhost" in API_URL or "127.0.0.1" in API_URL:  # if working local, Google token is not needed
-        return None
-
-    metadata_url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity"
-    params = {"audience": API_URL}
-    headers = {"Metadata-Flavor": "Google"}
-
-    try:
-        response = requests.get(metadata_url, params=params, headers=headers, timeout=2)
-        if response.status_code == 200:
-            return response.text.strip()
-        else:
-            print(f"Error loading token from the metadata: {response.status_code} {response.text}")
-    except Exception as e:
-        print(f"Cannot connect to Metadata Server (are you working locally?): {e}")
-    
-    return None
-
-def get_headers():
-    """
-    Creates headers with autorization token.
-    """
-    headers = {"Content-Type": "application/json"}
-    
-    token = get_google_auth_token()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-        
-    return headers
-
 # --- Helper Functions ---
 
 def fetch_all_admins():
     """Fetch list of admins for login and dropdowns."""
     try:
-        resp = requests.get(f"{API_URL}/admins/", headers=get_headers())
+        resp = requests.get(f"{API_URL}/admins/", headers=get_headers(API_URL))
         return resp.json() if resp.status_code == 200 else []
     except Exception as e:
         print(f"Error loading admins: {e}")
@@ -85,7 +50,7 @@ def index():
 def login():
     email = request.form.get('email')
     
-    admin = requests.get(f"{API_URL}/admins/contact/{email}", headers=get_headers())
+    admin = requests.get(f"{API_URL}/admins/contact/{email}", headers=get_headers(API_URL))
     user = admin.json() if admin.status_code == 200 else None
 
     if user:
@@ -118,7 +83,7 @@ def register():
         }
         
         try:
-            resp = requests.post(f"{API_URL}/admins/", json=payload, headers=get_headers())
+            resp = requests.post(f"{API_URL}/admins/", json=payload, headers=get_headers(API_URL))
             print(resp.text)
             
             if resp.status_code == 200:
@@ -153,19 +118,19 @@ def dashboard():
     
     try:
         user_id = session['user_id']
-        resp = requests.get(f"{API_URL}/admins/{user_id}/services", headers=get_headers())
+        resp = requests.get(f"{API_URL}/admins/{user_id}/services", headers=get_headers(API_URL))
         
         if resp.status_code == 200:
             services = resp.json()
             
             for svc in services:
 
-                resp_admins = requests.get(f"{API_URL}/services/{svc['id']}/admins", headers=get_headers())
+                resp_admins = requests.get(f"{API_URL}/services/{svc['id']}/admins", headers=get_headers(API_URL))
                 if resp_admins.status_code == 200:
                     svc.update(resp_admins.json())
                 else:
                     svc.update({"primary": None, "secondary": None})
-                inc_resp = requests.get(f"{API_URL}/services/{svc['id']}/incidents", headers=get_headers())
+                inc_resp = requests.get(f"{API_URL}/services/{svc['id']}/incidents", headers=get_headers(API_URL))
                 if inc_resp.status_code == 200:
                     svc['incidents'] = inc_resp.json()
                 else:
@@ -192,7 +157,7 @@ def add_service():
             "failure_threshold": int(request.form.get('threshold'))  # new field
         }
 
-        resp = requests.post(f"{API_URL}/services", json=svc_payload, headers=get_headers())
+        resp = requests.post(f"{API_URL}/services", json=svc_payload, headers=get_headers(API_URL))
 
         if resp.status_code in [200, 201]:
             data = resp.json()
@@ -207,7 +172,7 @@ def add_service():
             resp_primary = requests.post(
                 f"{API_URL}/services/{service_id}/admin",
                 json=primary_admin_payload,
-                headers=get_headers()
+                headers=get_headers(API_URL)
             )
             if resp_primary.status_code not in [200, 201]:
                 flash(f"Error assigning primary admin: {resp_primary.text}", "danger")
@@ -224,7 +189,7 @@ def add_service():
                 resp_secondary = requests.post(
                     f"{API_URL}/services/{service_id}/admin",
                     json=secondary_admin_payload,
-                    headers=get_headers()
+                    headers=get_headers(API_URL)
                 )
                 if resp_secondary.status_code not in [200, 201]:
                     flash(f"Error assigning secondary admin: {resp_secondary.text}", "danger")
@@ -246,7 +211,7 @@ def edit_service(service_id):
         return redirect(url_for('index'))
 
     # 1. Fetch service details from API
-    resp_service = requests.get(f"{API_URL}/services/{service_id}", headers=get_headers())
+    resp_service = requests.get(f"{API_URL}/services/{service_id}", headers=get_headers(API_URL))
     if resp_service.status_code != 200:
         flash(f"Service not found: {resp_service.text}", "danger")
         return redirect(url_for('dashboard'))
@@ -255,7 +220,7 @@ def edit_service(service_id):
     # 2. Fetch current admins for the service
     current_admins = {"primary": None, "secondary": None} # default values
     try:
-        resp_admins = requests.get(f"{API_URL}/services/{service_id}/admins", headers=get_headers())
+        resp_admins = requests.get(f"{API_URL}/services/{service_id}/admins", headers=get_headers(API_URL))
         if resp_admins.status_code == 200:
             data = resp_admins.json()
             current_admins["primary"] = data.get("primary")
@@ -284,7 +249,7 @@ def edit_service(service_id):
         resp_update_service = requests.put(
             f"{API_URL}/services/{service_id}",
             json=svc_payload,
-            headers=get_headers()
+            headers=get_headers(API_URL)
         )
         if resp_update_service.status_code not in [200, 201]:
             flash(f"Failed to update service: {resp_update_service.text}", "danger")
@@ -300,7 +265,7 @@ def edit_service(service_id):
                 "role": "primary",
                 "new_admin_id": int(primary_admin_id)
             }
-            resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
+            resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers(API_URL))
             if resp_admin.status_code not in [200, 201]:
                 flash(f"Failed to update primary admin: {resp_admin.text}", "danger")
                 return redirect(url_for('edit_service', service_id=service_id))
@@ -312,14 +277,14 @@ def edit_service(service_id):
                     "role": "secondary",
                     "new_admin_id": int(secondary_admin_id)
                 }
-                resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
+                resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers(API_URL))
             else:  # secondary admin didn't exist: create one
                 payload = {
                     "service_id": service_id, 
                     "role": "secondary", 
                     "admin_id": int(secondary_admin_id)
                 }
-                resp_admin = requests.post(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
+                resp_admin = requests.post(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers(API_URL))
 
             if resp_admin.status_code not in [200, 201]:
                 flash(f"Failed to update secondary admin: {resp_admin.text}", "danger")
@@ -345,7 +310,7 @@ def delete_service(service_id):
     
     try:
         # Call your FastAPI DELETE endpoint
-        resp = requests.delete(f"{API_URL}/services/{service_id}", headers=get_headers())
+        resp = requests.delete(f"{API_URL}/services/{service_id}", headers=get_headers(API_URL))
         
         if resp.status_code == 200:
             flash("Service successfully deleted.", "success")
@@ -371,7 +336,7 @@ def profile():
         resp = requests.patch(
             f"{API_URL}/admins/{session['user_id']}",
             json={"contact_value": new_email, "contact_type": "email"},
-            headers=get_headers()
+            headers=get_headers(API_URL)
         )
         if resp.status_code == 200:
             session['user_email'] = new_email
