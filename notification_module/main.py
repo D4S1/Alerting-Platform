@@ -1,4 +1,6 @@
 import os
+import base64
+import json
 from flask import Flask, request, jsonify
 from notification_module.notification_engine import NotificationEngine
 from notification_module.api_client import NotificationApiClient
@@ -25,10 +27,29 @@ engine = NotificationEngine(
 @app.route("/event", methods=["POST"])
 def handle_pubsub_event():
     """Endpoint for new incidents (e.g. from Pub/Sub push)"""
-    event = request.get_json()
-    if not event:
+    envelope = request.get_json()
+    if not envelope:
         return "No payload", 400
+
+    # Pub/Sub message should have 'message' key
+    if "message" not in envelope:
+        print("Invalid Pub/Sub envelope", envelope)
+        return "Invalid envelope", 400
+
+    pubsub_message = envelope["message"]
+
+    if "data" in pubsub_message:
+        try:
+            # Decode base64 -> bytes -> string -> json
+            data_str = base64.b64decode(pubsub_message["data"]).decode("utf-8")
+            event = json.loads(data_str)
+        except Exception as e:
+            print(f"Failed to decode message: {e}")
+            return "Decoding error", 400
+    else:
+        return "No data in message", 400
     
+    print(f"Processing event: {event}")  # Logging for debugging
     engine.handle_event(event)
     return "Event processed", 200
 
