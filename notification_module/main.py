@@ -12,7 +12,7 @@ app = Flask(__name__)
 # Component intitialization
 # -----------------------------
 
-api_client = NotificationApiClient(base_url=os.environ.get("API_BASE_URL"))
+api_client = NotificationApiClient(api_base_url=os.environ.get("API_BASE_URL"))
 mailer = Mailer()
 engine = NotificationEngine(
     api=api_client, 
