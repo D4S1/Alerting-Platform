@@ -9,4 +9,4 @@ COPY monitoring_module/ ./monitoring_module/
 COPY utils/ ./utils/
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "monitoring/monitoring_engine.py"]
+CMD ["python", "monitoring_module/monitoring_engine.py"]
