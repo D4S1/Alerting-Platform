@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
@@ -349,9 +348,7 @@ def acknowledge_incident(token: str, db: Session = Depends(get_db)):
         attempt.response_at = datetime.now(timezone.utc)
         db.commit()
 
-    # return {"status": "acknowledged"}
-    ui_url = os.environ.get("UI_URL", "http://127.0.0.1/")
-    return RedirectResponse(url=f"{ui_url}/?msg=incident_acknowledged")
+    return {"status": "acknowledged"}
 
 
 @app.get("/incidents/{incident_id}")

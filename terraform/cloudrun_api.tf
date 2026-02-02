@@ -34,12 +34,6 @@ resource "google_cloud_run_service" "api" {
             }
           }
         }
-
-        env {
-          name  = "UI_URL"
-          value = google_cloud_run_service.ui.status[0].url
-        }
-
       }
     }
   }
