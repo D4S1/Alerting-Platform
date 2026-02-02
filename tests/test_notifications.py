@@ -93,8 +93,7 @@ def test_contact_attempt_updated_on_ack(client, db_session):
 
 def test_notification_engine_logic(mock_mailer, mock_tasks_client):
     api = MagicMock()
-    fake_admin = Admin(id=1, contact_value="test@example.com")
-    api.get_admins_by_incident.return_value = [fake_admin]
+    api.get_admins_by_incident.return_value = [{'id': 1, 'contact_value': "test@example.com"}]
     api.get_service_name.return_value = None
 
     engine = NotificationEngine(

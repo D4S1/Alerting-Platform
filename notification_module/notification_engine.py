@@ -8,7 +8,6 @@ from flask import request
 
 from notification_module.api_client import NotificationApiClient
 from notification_module.mailer import Mailer
-from utils.models import Admin
 
 
 JWT_SECRET = os.environ.get('jwt_secret', 'test-secret-key')
@@ -65,15 +64,15 @@ class NotificationEngine:
 
         for admin in primary_admins:
             self._notify_admin(incident_id, admin, escalation=False)
-    
-    def _notify_admin(self, incident_id: int, admin: Admin, escalation: bool):
+
+    def _notify_admin(self, incident_id: int, admin: dict, escalation: bool):
         """
         Generates an acknowledgment token, sends a notification email to the admin,
         records the contact attempt, and schedules escalation if required.
         """
         token = self._generate_ack_token(
             incident_id=incident_id,
-            admin_id=admin.id,
+            admin_id=admin['id'], 
             jwt_secret=self.jwt_secret
         )
 
@@ -83,14 +82,14 @@ class NotificationEngine:
         link = f"{self.ui_url}/ack/{token}"
 
         success = self.mailer.send(
-            to=admin.contact_value,
+            to=admin['contact_value'],
             subject="Incident detected",
             body=f"Service{service_str} is DOWN.\n\n{link}"
         )
 
         self.api.add_contact_attempt({
             "incident_id": incident_id,
-            "admin_id": admin.id,
+            "admin_id": admin['id'],
             "channel": "email",
             "result": "sent" if success else "failed"
         })
@@ -166,7 +165,7 @@ class NotificationEngine:
 
         for admin in admins:
             self.mailer.send(
-                to=admin.contact_value,
+                to=admin['contact_value'],
                 subject="Incident resolved",
                 body="The service is back online."
             )
