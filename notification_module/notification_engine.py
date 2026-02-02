@@ -79,7 +79,7 @@ class NotificationEngine:
         service_name = self.api.get_service_name(incident_id)
         service_str = f" {service_name}" if service_name else ""
 
-        link = f"{self.api.api_base_url}/incidents/ack?token={token}"
+        link = f"{self.ui_url}/incidents/ack?token={token}"
 
         success = self.mailer.send(
             to=admin['contact_value'],

@@ -302,7 +302,6 @@ def edit_service(service_id):
     )
 
 
-
 @app.route('/service/delete/<int:service_id>', methods=['POST'])
 def delete_service(service_id):
     if 'user_id' not in session:
@@ -344,6 +343,52 @@ def profile():
             flash("Update failed.", "danger")
             
     return render_template('profile.html')
+
+
+@app.route('/incidents/ack', methods=['GET', 'POST'])
+def acknowledge_incident():
+    """
+    Handles the incident acknowledgment link from emails.
+    
+    GET: Renders a confirmation page (prevents email scanners from triggering the action).
+    POST: Sends the acknowledgment request to the private backend API.
+    """
+    
+    # 1. Retrieve token from URL (GET) or Form Body (POST)
+    token = request.args.get('token') or request.form.get('token')
+
+    if not token:
+        return render_template('acknowledge.html', error="Missing token in the link.")
+
+    # 2. Handle the User's Click (POST)
+    if request.method == 'POST':
+        try:
+            # Send the token to the private API to confirm the incident
+            payload = {"token": token}
+            resp = requests.post(
+                f"{API_URL}/incidents/ack", 
+                json=payload, 
+                headers=get_headers(API_URL)
+            )
+
+            if resp.status_code == 200:
+                return render_template('acknowledge.html', success=True)
+            
+            elif resp.status_code == 404:
+                return render_template('acknowledge.html', error="Incident not found or token invalid.")
+            
+            elif resp.status_code == 409:
+                return render_template('acknowledge.html', error="Incident already acknowledged.")
+            
+            else:
+                error_detail = resp.json().get('detail', 'Unknown error')
+                return render_template('acknowledge.html', error=f"API Error: {error_detail}")
+
+        except requests.exceptions.RequestException as e:
+            return render_template('acknowledge.html', error=f"Connection to backend failed: {str(e)}")
+
+    # 3. Handle Initial Page Load (GET)
+    return render_template('acknowledge.html', token=token)
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
