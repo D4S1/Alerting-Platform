@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 import os
+from pydantic import BaseModel
 
 from api.db import get_db, engine
 from utils.models import Base
@@ -23,6 +24,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Monitoring API", lifespan=lifespan)
 
 JWT_SECRET = os.environ.get('jwt_secret', 'test-secret-key')
+
+# Model for acknowledgement input data
+class AckRequest(BaseModel):
+    token: str
 
 # -----------------------------
 # Services
@@ -308,8 +313,11 @@ def get_notified_admins(incident_id: int, db: Session = Depends(get_db)):
     )
     return admins
 
-@app.get("/incidents/ack")
-def acknowledge_incident(token: str, db: Session = Depends(get_db)):
+
+@app.post("/incidents/ack") 
+def acknowledge_incident(request: AckRequest, db: Session = Depends(get_db)):
+    token = request.token
+    
     # Decode token
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
