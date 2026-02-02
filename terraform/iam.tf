@@ -123,3 +123,27 @@ resource "google_pubsub_topic_iam_member" "invoker_publisher" {
   role    = "roles/pubsub.publisher"
   member  = "serviceAccount:${google_service_account.invoker.email}"
 }
+
+resource "google_pubsub_subscription" "alerting_push" {
+  name  = "alerting-notification-push"
+  topic = google_pubsub_topic.alerting.name
+  
+  ack_deadline_seconds = 20
+
+  push_config {
+    # "/event" is a notification engine endpoint
+    push_endpoint = "${google_cloud_run_service.notification.status[0].url}/event"
+
+    # Invoker account for authorization
+    oidc_token {
+      service_account_email = google_service_account.invoker.email
+    }
+  }
+}
+
+resource "google_cloud_run_service_iam_member" "notification_push_invoker" {
+  service  = google_cloud_run_service.notification.name
+  location = google_cloud_run_service.notification.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.invoker.email}"
+}
