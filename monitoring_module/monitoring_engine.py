@@ -23,7 +23,7 @@ class MonitoringEngine:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(url, headers=headers)
             r.raise_for_status()
-            return await r.json()
+            return r.json()
 
     async def run_once(self):
         try:
