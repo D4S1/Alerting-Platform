@@ -19,11 +19,33 @@ class NotificationApiClient:
         ).json()
 
     def get_service_name(self, incident_id: int):
-        r = requests.get(
-            f"{self.api_base_url}/incidents/{incident_id}/service",
+        # Get incident, to find service id
+        r_incident = requests.get(
+            f"{self.api_base_url}/incidents/{incident_id}",
             headers=get_headers(self.api_base_url)
-        ).json()
-        return r["service_name"]
+        )
+        
+        if r_incident.status_code != 200:
+            print(f"Failed to fetch incident {incident_id}: {r_incident.text}")
+            return "Unknown Service"
+            
+        incident_data = r_incident.json()
+        service_id = incident_data.get("service_id")
+        
+        if not service_id:
+            return "Unknown Service"
+
+        # Get service name by id
+        r_service = requests.get(
+            f"{self.api_base_url}/services/{service_id}",
+            headers=get_headers(self.api_base_url)
+        )
+        
+        if r_service.status_code != 200:
+            print(f"Failed to fetch service {service_id}: {r_service.text}")
+            return "Unknown Service"
+            
+        return r_service.json().get("name", "Unknown Service")
 
     def is_acknowledged(self, incident_id: int) -> bool:
         r = requests.get(
