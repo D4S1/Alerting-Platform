@@ -32,4 +32,5 @@ class Mailer:
 
         except Exception as e:
             print(f"SMTP Error: {e}", flush=True)
+            print(f"Message to be sent: {body}")
             return False
