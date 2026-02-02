@@ -115,3 +115,11 @@ resource "google_project_iam_member" "notification_task_creator" {
   role    = "roles/cloudtasks.enqueuer"
   member  = "serviceAccount:${google_service_account.notification.email}"
 }
+
+# IAM: Invoker -> PubSub Publisher
+resource "google_pubsub_topic_iam_member" "invoker_publisher" {
+  project = var.project_id
+  topic   = google_pubsub_topic.alerting.name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${google_service_account.invoker.email}"
+}
