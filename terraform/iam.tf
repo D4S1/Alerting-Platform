@@ -116,6 +116,19 @@ resource "google_project_iam_member" "notification_task_creator" {
   member  = "serviceAccount:${google_service_account.notification.email}"
 }
 
+resource "google_service_account_iam_member" "notification_sa_user" {
+  service_account_id = google_service_account.notification.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.notification.email}"
+}
+
+resource "google_cloud_run_service_iam_member" "notification_task_invoker" {
+  service  = google_cloud_run_service.notification.name
+  location = google_cloud_run_service.notification.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.notification.email}"
+}
+
 # IAM: Invoker -> PubSub Publisher
 resource "google_pubsub_topic_iam_member" "invoker_publisher" {
   project = var.project_id
@@ -134,7 +147,6 @@ resource "google_pubsub_subscription" "alerting_push" {
     # "/event" is a notification engine endpoint
     push_endpoint = "${google_cloud_run_service.notification.status[0].url}/event"
 
-    # Invoker account for authorization
     oidc_token {
       service_account_email = google_service_account.invoker.email
     }
