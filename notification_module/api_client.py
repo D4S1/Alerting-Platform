@@ -48,11 +48,14 @@ class NotificationApiClient:
         return r_service.json().get("name", "Unknown Service")
 
     def is_acknowledged(self, incident_id: int) -> bool:
-        r = requests.get(
-            f"{self.api_base_url}/incidents/{incident_id}/acknowledged",
-            headers=get_headers(self.api_base_url)
-        ).json()
-        return r["acknowledged"]
+        incident = self.get_incident(incident_id)
+        
+        # If incident is deleted, consider it acknowledged
+        if not incident or "status" not in incident:
+            return True 
+            
+        status = incident["status"]
+        return status in ["acknowledged", "resolved"]
 
     def add_contact_attempt(self, payload: dict):
         requests.post(
