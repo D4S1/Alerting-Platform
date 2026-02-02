@@ -79,12 +79,12 @@ class NotificationEngine:
         service_name = self.api.get_service_name(incident_id)
         service_str = f" {service_name}" if service_name else ""
 
-        link = f"{self.ui_url}/ack/{token}"
+        link = f"{self.api.api_base_url}/incidents/ack?token={token}"
 
         success = self.mailer.send(
             to=admin['contact_value'],
             subject="Incident detected",
-            body=f"Service{service_str} is DOWN.\n\n{link}"
+            body=f"Service{service_str} is DOWN.\n\nClick to acknowledge:\n\n{link}"
         )
 
         self.api.add_contact_attempt({
