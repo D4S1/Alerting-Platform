@@ -250,6 +250,5 @@ terraform/.terraform.tfstate.lock.info
 # example: *tfplan*
 
 # Ignore CLI configuration files
-notification_module/notification_engine_previous.py
 terraform/.terraformrc
 terraform/terraform.rc
