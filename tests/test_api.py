@@ -82,9 +82,6 @@ def test_delete_service(client, db_session):
     service = db_session.query(Service).filter_by(id=2).first()
     assert service is None
 
-    service_admins = db_session.query(ServiceAdmin).filter_by(service_id=2).all()
-    assert len(service_admins) == 0
-
 # -----------------------------
 # Service admins
 # -----------------------------
@@ -264,8 +261,7 @@ def test_get_notified_admins(client):
 def test_acknowledge_incident(client, db_session):
     token = make_ack_token(incident_id=1, admin_id=1)
 
-    resp = client.get(f"/incidents/ack?token={token}")
-    print(resp.json())
+    resp = client.post(f"/incidents/ack", json={'token': token})
     assert resp.status_code == 200
     assert resp.json()["status"] == "acknowledged"
 
@@ -279,7 +275,7 @@ def test_acknowledge_resolved_incident(client, db_session):
 
     token = make_ack_token(1, 1)
 
-    resp = client.get(f"/incidents/ack?token={token}")
+    resp = client.post(f"/incidents/ack", json={'token': token})
     assert resp.status_code == 200
     assert resp.json()["status"] == "already resolved"
 

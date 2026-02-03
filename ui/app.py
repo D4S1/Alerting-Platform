@@ -59,7 +59,7 @@ def login():
         session['user_email'] = user['contact_value']
         return redirect(url_for('dashboard'))
     
-    flash(f'Email not found. Please register. {admin.status_code=} {user=}', 'danger')
+    flash(f'Email not found. Please register.', 'danger')
     return redirect(url_for('index'))
 
 
