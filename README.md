@@ -17,14 +17,19 @@
 
 ---
 
-<p align="center">
-  <img src="graphics/dataflow.png" alt="Alerting Platform Dataflow" width="700"/>
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="graphics/dataflow-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="graphics/dataflow-light.png">
+  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png">
+</picture>
 
 
-<p align="center">
-  <img src="graphics/architecture.png" alt="Alerting Platform Architecture" width="700"/>
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="graphics/architecture-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="graphics/architecture-light.png">
+  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png">
+</picture>
+
 
 ---
 
