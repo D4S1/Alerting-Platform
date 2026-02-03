@@ -5,7 +5,7 @@ resource "google_project_service" "cloud_tasks_api" {
 }
 
 resource "google_cloud_tasks_queue" "notifications" {
-  name     = "notifications-queue"
+  name     = "notifications-queue-1"
   location = var.region
 
   retry_config {
