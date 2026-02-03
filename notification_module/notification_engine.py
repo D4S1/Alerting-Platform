@@ -3,11 +3,14 @@ import jwt
 from google.cloud import tasks_v2
 from datetime import datetime, timedelta, timezone
 from google.protobuf import timestamp_pb2
+import os
+from flask import request
 
-from config import JWTConfig
 from notification_module.api_client import NotificationApiClient
 from notification_module.mailer import Mailer
-from utils.models import Admin
+
+
+JWT_SECRET = os.environ.get('jwt_secret', 'test-secret-key')
 
 
 class NotificationEngine:
@@ -26,14 +29,19 @@ class NotificationEngine:
         location: GCP location for Cloud Tasks.
         queue: Cloud Tasks queue name.
     """
-    def __init__(self, api: NotificationApiClient, mailer: Mailer, project_id: str, location: str, queue: str):
+    def __init__(self, api: NotificationApiClient, esc_delay_seconds: int, mailer: Mailer):
         self.api = api
         self.mailer = mailer
+        self.esc_delay_seconds = esc_delay_seconds
         self.tasks_client = tasks_v2.CloudTasksClient()
-        
-        # Cloud Tasks configuration
-        self.queue_path = self.tasks_client.queue_path(project_id, location, queue)
-        self.service_url = "https://cloud-run-service.a.run.app/escalate" # TODO: replace with actual URL
+
+        # Getting configuration from environment variables injected by Terraforms
+        self.project_id = os.environ.get('PROJECT_ID')
+        self.location = os.environ.get('LOCATION', 'europe-central2')
+        self.queue = os.environ.get('QUEUE_NAME', 'notifications-queue')
+        self.ui_url = os.environ.get('UI_URL')
+        self.jwt_secret = os.environ.get('JWT_SECRET')
+        self.queue_path = self.tasks_client.queue_path(self.project_id, self.location, self.queue)
 
     def handle_event(self, event: dict):
         """
@@ -56,31 +64,32 @@ class NotificationEngine:
 
         for admin in primary_admins:
             self._notify_admin(incident_id, admin, escalation=False)
-    
-    def _notify_admin(self, incident_id: int, admin: Admin, escalation: bool):
+
+    def _notify_admin(self, incident_id: int, admin: dict, escalation: bool):
         """
         Generates an acknowledgment token, sends a notification email to the admin,
         records the contact attempt, and schedules escalation if required.
         """
         token = self._generate_ack_token(
             incident_id=incident_id,
-            admin_id=admin.id
+            admin_id=admin['id'], 
+            jwt_secret=self.jwt_secret
         )
 
         service_name = self.api.get_service_name(incident_id)
         service_str = f" {service_name}" if service_name else ""
 
-        link = f"https://monitoring.local/ack/{token}"
+        link = f"{self.ui_url}/incidents/ack?token={token}"
 
         success = self.mailer.send(
-            to=admin.contact_value,
+            to=admin['contact_value'],
             subject="Incident detected",
-            body=f"Service{service_str} is DOWN.\n\n{link}"
+            body=f"Service{service_str} is DOWN.\n\nClick to acknowledge:\n\n{link}"
         )
 
         self.api.add_contact_attempt({
             "incident_id": incident_id,
-            "admin_id": admin.id,
+            "admin_id": admin['id'],
             "channel": "email",
             "result": "sent" if success else "failed"
         })
@@ -88,7 +97,7 @@ class NotificationEngine:
         if not escalation:
             self._schedule_escalation(incident_id)
 
-    def _generate_ack_token(self, incident_id: int, admin_id: int) -> str:
+    def _generate_ack_token(self, incident_id: int, admin_id: int, jwt_secret: str) -> str:
         """
         Generate a JWT acknowledgment token for an administrator.
         The token encodes the incident ID, administrator ID, and expiration time.
@@ -96,36 +105,42 @@ class NotificationEngine:
         payload = {
             "incident_id": incident_id,
             "admin_id": admin_id,
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=JWTConfig.JWT_EXP_MINUTES),
         }
-        return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
+        return jwt.encode(payload, jwt_secret, algorithm="HS256")
 
     def _schedule_escalation(self, incident_id: int):
         """
         Creates a task in Cloud Tasks that hits the /escalate endpoint after the delay.
         """
-        
         payload = {"incident_id": incident_id}
         body = json.dumps(payload).encode()
 
         # Calculate scheduled time
-        d = datetime.now(timezone.utc) + timedelta(seconds=JWTConfig.ESCALATION_DELAY_SECONDS)
+        d = datetime.now(timezone.utc) + timedelta(seconds=self.esc_delay_seconds)
         timestamp = timestamp_pb2.Timestamp()
         timestamp.FromDatetime(d)
 
+        # Get URL from current request
+        current_host = request.host
+        target_url = f"https://{current_host}/escalate"
+
+        # Configure Cloud Tasks request
         task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST,
-                "url": self.service_url,
+                "url": target_url,
                 "headers": {"Content-type": "application/json"},
                 "body": body,
+                "oidc_token": {
+                    "service_account_email": os.environ.get('SERVICE_ACCOUNT_EMAIL'),
+                    "audience": f"https://{current_host}" 
+                },
             },
             "schedule_time": timestamp,
         }
 
         self.tasks_client.create_task(parent=self.queue_path, task=task)
-        print(f"Scheduled escalation for incident {incident_id}")
-
+        print(f"Scheduled escalation for incident {incident_id} via {target_url}")
 
     def handle_escalation_check(self, incident_id: int):
         """
@@ -150,7 +165,7 @@ class NotificationEngine:
 
         for admin in admins:
             self.mailer.send(
-                to=admin.contact_value,
+                to=admin['contact_value'],
                 subject="Incident resolved",
                 body="The service is back online."
             )

@@ -16,3 +16,5 @@ protobuf==6.33.4
 google-cloud==0.34.0
 google-cloud-pubsub==2.34.0
 google-cloud-tasks==2.21.0
+PyJWT==2.10.1
+psycopg2-binary==2.9.11

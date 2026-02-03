@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch, AsyncMock, MagicMock
 import httpx
 
 from monitoring_module.collector import IPStatusCollector
@@ -69,10 +69,17 @@ async def test_should_trigger_incident_false(collector):
 
 @pytest.mark.asyncio
 async def test_should_trigger_incident_true(collector):
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value.json.return_value = [1, 2, 3]
-        assert await collector._should_trigger_incident() is True
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = [1, 2, 3]
 
+    # Mock auth
+    with patch("monitoring_module.collector.get_headers_async", return_value={"Authorization": "Bearer test"}):
+        
+        # Mock httpx.AsyncClient.get as ASYNC mock
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_response
+            assert await collector._should_trigger_incident() is True
 
 # -------------------- Incident flow --------------------
 

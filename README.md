@@ -1,89 +1,131 @@
 # Alerting-Platform
-Alerting platform that monitors HTTP services, sends email notifications to administrators, escalates alerts automatically, and maintains full audit logging. The platform is simple to deploy on Google Cloud, testable locally.
 
-## Dummy database setup
+**Alerting-Platform** is a cloud-native solution that monitors HTTP services, triggers automated alerts, escalates incidents, and maintains full audit logging. The platform is designed to be **lightweight, highly configurable, and easy to deploy on Google Cloud**, with a focus on operational simplicity, reliability, and developer-friendliness for CI/CD automation.
 
-```
-python utils/dummy_db.py \     
-  -s 3 \
-  -i 5 \
-  -db database/monitoring.db
-```
+---
 
-FOr viewing recommend `SQLite Viewer` extention in Visual Studio Code
+## Features
+
+- **Continuous Monitoring:** Periodically checks HTTP endpoints at administrator-defined intervals.  
+- **Automated Incident Management:** Detects incidents based on configurable failure thresholds.  
+- **Notification & Escalation:** Sends email notifications to primary and secondary administrators.  
+- **Acknowledgment Workflow:** Administrators can acknowledge incidents via email or UI.  
+- **Audit Logging:** Tracks all notification attempts, acknowledgments, and incident resolutions.  
+- **Cloud-Native Architecture:** Serverless deployment using Cloud Run, Pub/Sub, and Cloud SQL.  
+- **Lightweight UI:** Web interface for registering services, managing administrators, and acknowledging incidents.  
+- **Developer-Friendly:** Dockerized services and Terraform-based infrastructure for repeatable deployments.  
+
+---
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="graphics/dataflow-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="graphics/dataflow-light.png">
+  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png">
+</picture>
 
 
-## How to run API
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="graphics/architecture-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="graphics/architecture-light.png">
+  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png">
+</picture>
 
-```
-uvicorn api.main:app --reload
-```
 
-### Service enpoints
+---
 
-Creates new service
-```
-curl -X POST "http://localhost:8000/services" \
--H "Content-Type: application/json" \
--d '{
-  "name": "<name>",
-  "IP": "<url>",
-  "frequency_seconds": 5,
-  "alerting_window_npings": 10
-}'
-```
+## Deployment
 
-Deletes the service
-```
-curl -X DELETE "http://localhost:8000/services/1"
-```
+### Prerequisites
 
-### Incident endpoints
+Before deploying, ensure the following tools and services are available:
 
-Creates new incident for service id=1
-```
-curl -X POST "http://localhost:8000/services/<service_id>/incidents"
-```
-List all incidents for given service
-```
-curl -X GET "http://localhost:8000/services/<service_id>/incidents"
-```
-List open incidents for given service
-```
-curl -X GET "http://localhost:8000/services/<service_id>/incidents/open" 
-```
-Changes the status
-```
-curl -X PATCH "http://localhost:8000/incidents/<incident_id>/status?status=<status>" 
-```
-Closes the incident (sets ended_at to current time)
-```
-curl -X PATCH "http://localhost:8000/incidents/<incident_id>/resolve" 
-```
+- Google Cloud account with **project creation permissions**  
+- [Google Cloud SDK (`gcloud`)](https://cloud.google.com/sdk/docs)  
+- [Docker](https://www.docker.com/get-started)  
+- [Terraform](https://www.terraform.io/downloads)  
+- SMTP credentials for email notifications  
 
-## Notification engine
-### Environment configuration
+---
 
-1. Copy example file:
+### Artifact Registry
+
+Artifact Registry is used to store Docker images for the platform. Follow these steps to configure it:
+
+1. **Create the Artifact Registry:**
+
 ```bash
-cp .env.example .env
+gcloud artifacts repositories create <registry-repo> \
+    --repository-format=docker \
+    --location=<region> \
+    --description="Artifact registry for Alerting-Platform"
 ```
-2. Fill in the values ​​in .env:
 
-| Variable                 | Description                                | Example / Default            |
-|--------------------------|--------------------------------------------|------------------------------|
-| SMTP_HOST                | Address of the SMTP server                 | smtp.gmail.com               |
-| SMTP_PORT                | Port for the SMTP server                   | 587 (default)                |
-| SMTP_USERNAME            | Username (usually email address)           | user@example.com             |
-| SMTP_PASSWORD            | Password or App Password                   | your-secret-password         |
-| SMTP_FROM                | Email address shown as the sender          | notifications@yourdomain.com |
-| JWT_SECRET               | Secret key for signing ACK tokens          | long-random-string-here      |
-| JWT_EXP_MINUTES          | Token expiration time in minutes           | 15 (default)                 |
-| ESCALATION_DELAY_SECONDS | Delay before escalating to secondary admin | 300 (default)              |
+2. **Configure Docker authentication for your region:**
 
-
-## How to initialize the UI
-
+```bash
+gcloud auth configure-docker <region>-docker.pkg.dev
 ```
-gunicorn --bind localhost:5000 ui.app:app
+
+---
+
+### Docker
+
+All components are containerized. Dockerfiles are located in the `docker` folder:
+
+- `api.Dockerfile` – API microservice  
+- `monitoring.Dockerfile` – Monitoring Engine  
+- `notification.Dockerfile` – Notification Engine  
+- `ui.Dockerfile` – Administrator UI  
+- `db.Dockerfile` – Database initialization and utilities  
+
+**Build and push Docker images to Artifact Registry:**
+
+```bash
+docker buildx build -f docker/<component>.Dockerfile \
+    -t <region>-docker.pkg.dev/<project-name>/<registry-repo>/<component>:<tag> .
+docker push <region>-docker.pkg.dev/<project-name>/<registry-repo>/<component>:<tag>
 ```
+
+Replace:
+
+- `<component>` – api, monitoring, notification, ui, or db  
+- `<region>` – Artifact Registry region  
+- `<project-name>` – GCP project ID  
+- `<registry-repo>` – Artifact Registry repository  
+- `<tag>` – image version tag (e.g., `v1.0.0`)  
+
+> **Pro Tip:** Use consistent semantic versioning across all images to simplify deployment and rollback.
+
+---
+
+### Infrastructure
+
+Infrastructure is provisioned using **Terraform**, ensuring repeatable, environment-agnostic deployments.
+
+**Required variables:**
+
+- `project_name` – Google Cloud project ID  
+- `region` – Deployment region  
+- `docker_views_location` – Path to Docker images in Artifact Registry  
+- `smtp_domain` – SMTP domain for email notifications  
+- `smtp_password` – SMTP password (stored securely in Secret Manager)  
+
+**Deploy infrastructure:**
+
+```bash
+cd terraform
+terraform init
+terraform apply
+```
+
+**Terraform provisions:**
+
+- Cloud Run services for API, UI, and Notification Engine  
+- Cloud Run Job for Monitoring Engine
+- Cloud SQL PostgreSQL database  
+- Pub/Sub topics for incident notifications  
+- Secret Manager entries for SMTP, DB credentials and API secrets  
+- Cloud IAM roles for service accounts and secure access  
+
+> **Security Note:** Terraform ensures sensitive information (e.g., SMTP passwords) is stored securely and not hard-coded.
+

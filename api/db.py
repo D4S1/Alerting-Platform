@@ -1,17 +1,18 @@
-import sqlite3
-from contextlib import contextmanager
-
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
-DB_PATH = "database/test.db"
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}  # SQLite-specific
-)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+SQLALCHEMY_DATABASE_URL = os.environ.get('db_url', '')
+
+if SQLALCHEMY_DATABASE_URL:
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_pre_ping=True,
+    )
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+else:
+    engine = None
 
 
 def get_db():

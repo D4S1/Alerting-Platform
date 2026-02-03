@@ -1,15 +1,30 @@
 from fastapi import FastAPI, HTTPException, Depends
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
+import os
+from pydantic import BaseModel
 
-from api.db import get_db
-from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut, ContactAttemptCreate
+from api.db import get_db, engine
+from utils.models import Base
+from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut, ContactAttemptCreate, AckRequest
 from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure, ContactAttempt
-from config import JWTConfig
 
-app = FastAPI(title="Monitoring API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        Base.metadata.create_all(bind=engine)  # Create tables if not present
+    except Exception as e:
+        print(f"Error initialising database:: {e}")
+    yield
+
+
+app = FastAPI(title="Monitoring API", lifespan=lifespan)
+
+JWT_SECRET = os.environ.get('jwt_secret', 'test-secret-key')
+
 
 # -----------------------------
 # Services
@@ -78,8 +93,6 @@ def delete_service(service_id: int, db: Session = Depends(get_db)):
     if not service:
         raise HTTPException(404, "Service not found")
 
-    # Delete related service_admins
-    db.query(ServiceAdmin).filter(ServiceAdmin.service_id == service_id).delete()
     db.delete(service)
     db.commit()
     return {"status": "service deleted"}
@@ -197,6 +210,8 @@ def get_all_admins(db: Session = Depends(get_db)):
 def get_admin_by_contact(value: str, db: Session = Depends(get_db)):
 
     admin = db.query(Admin).filter(Admin.contact_value == value).first()
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin not found")
     return admin
 
 
@@ -293,11 +308,14 @@ def get_notified_admins(incident_id: int, db: Session = Depends(get_db)):
     )
     return admins
 
-@app.get("/incidents/ack")
-def acknowledge_incident(token: str, db: Session = Depends(get_db)):
+
+@app.post("/incidents/ack") 
+def acknowledge_incident(request: AckRequest, db: Session = Depends(get_db)):
+    token = request.token
+    
     # Decode token
     try:
-        payload = jwt.decode(token, JWTConfig.JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
     except ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Token expired")
     except InvalidTokenError:
@@ -370,7 +388,7 @@ def list_recent_failures(service_id: int, window_seconds: int, db: Session = Dep
 
 @app.delete("/failures/cleanup")
 def cleanup_old_failures(db: Session = Depends(get_db)):
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
     deleted = db.query(PingFailure).filter(PingFailure.failed_at < cutoff).delete()
     db.commit()
     return {"deleted": deleted}

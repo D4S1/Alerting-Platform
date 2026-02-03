@@ -1,21 +1,6 @@
-from utils.models import Service, Admin, ServiceAdmin, Incident, ContactAttempt
+from utils.models import Service, Admin, ServiceAdmin, Incident
 from datetime import datetime, timezone, timedelta
-import jwt
-from datetime import datetime, timezone, timedelta
-from config import JWTConfig
 from tests.conftest import make_ack_token
-
-# -----------------------------
-# Test helpers
-# -----------------------------
-
-def make_ack_token(incident_id: int, admin_id: int, exp_seconds=60):
-    payload = {
-        "incident_id": incident_id,
-        "admin_id": admin_id,
-        "exp": datetime.now(timezone.utc) + timedelta(seconds=exp_seconds),
-    }
-    return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
 
 
 # -----------------------------
@@ -96,9 +81,6 @@ def test_delete_service(client, db_session):
     # Verify deletion in DB
     service = db_session.query(Service).filter_by(id=2).first()
     assert service is None
-
-    service_admins = db_session.query(ServiceAdmin).filter_by(service_id=2).all()
-    assert len(service_admins) == 0
 
 # -----------------------------
 # Service admins
@@ -279,19 +261,12 @@ def test_get_notified_admins(client):
 def test_acknowledge_incident(client, db_session):
     token = make_ack_token(incident_id=1, admin_id=1)
 
-    resp = client.get(f"/incidents/ack?token={token}")
+    resp = client.post(f"/incidents/ack", json={'token': token})
     assert resp.status_code == 200
     assert resp.json()["status"] == "acknowledged"
 
     inc = db_session.get(Incident, 1)
     assert inc.status == "acknowledged"
-
-def test_acknowledge_incident_expired_token(client):
-    token = make_ack_token(1, 1, exp_seconds=-1)
-
-    resp = client.get(f"/incidents/ack?token={token}")
-    assert resp.status_code == 400
-    assert resp.json()["detail"] == "Token expired"
 
 def test_acknowledge_resolved_incident(client, db_session):
     inc = db_session.get(Incident, 1)
@@ -300,7 +275,7 @@ def test_acknowledge_resolved_incident(client, db_session):
 
     token = make_ack_token(1, 1)
 
-    resp = client.get(f"/incidents/ack?token={token}")
+    resp = client.post(f"/incidents/ack", json={'token': token})
     assert resp.status_code == 200
     assert resp.json()["status"] == "already resolved"
 

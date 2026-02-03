@@ -2,10 +2,10 @@ import os
 import requests
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from utils.auth import get_headers
 
 app = Flask(__name__)
 app.secret_key = 'dev_secret_key'  # Change for production
-
 
 @app.template_filter('datetimeformat')
 def datetimeformat(value):
@@ -27,15 +27,14 @@ def datetimeformat(value):
 API_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
 # --- Helper Functions ---
-def get_headers():
-    return {"Content-Type": "application/json"}
 
 def fetch_all_admins():
     """Fetch list of admins for login and dropdowns."""
     try:
-        resp = requests.get(f"{API_URL}/admins/")
+        resp = requests.get(f"{API_URL}/admins/", headers=get_headers(API_URL))
         return resp.json() if resp.status_code == 200 else []
-    except:
+    except Exception as e:
+        print(f"Error loading admins: {e}")
         return []
 
 # --- Authentication Routes ---
@@ -51,7 +50,7 @@ def index():
 def login():
     email = request.form.get('email')
     
-    admin = requests.get(f"{API_URL}/admins/contact/{email}")
+    admin = requests.get(f"{API_URL}/admins/contact/{email}", headers=get_headers(API_URL))
     user = admin.json() if admin.status_code == 200 else None
 
     if user:
@@ -60,7 +59,7 @@ def login():
         session['user_email'] = user['contact_value']
         return redirect(url_for('dashboard'))
     
-    flash('Email not found. Please register.', 'danger')
+    flash(f'Email not found. Please register.', 'danger')
     return redirect(url_for('index'))
 
 
@@ -84,7 +83,7 @@ def register():
         }
         
         try:
-            resp = requests.post(f"{API_URL}/admins/", json=payload)
+            resp = requests.post(f"{API_URL}/admins/", json=payload, headers=get_headers(API_URL))
             print(resp.text)
             
             if resp.status_code == 200:
@@ -98,6 +97,8 @@ def register():
                 return redirect(url_for('dashboard'))
             else:
                 # This helps you see why the API rejected the request
+                print(f"API Error {resp.status_code}: {resp.text}")
+                flash(f"API Error: {resp.status_code}", "danger")
                 error_detail = resp.json().get('detail', 'Unknown error')
                 flash(f"Registration failed: {error_detail}", "danger")
                 
@@ -117,19 +118,19 @@ def dashboard():
     
     try:
         user_id = session['user_id']
-        resp = requests.get(f"{API_URL}/admins/{user_id}/services")
+        resp = requests.get(f"{API_URL}/admins/{user_id}/services", headers=get_headers(API_URL))
         
         if resp.status_code == 200:
             services = resp.json()
             
             for svc in services:
 
-                resp_admins = requests.get(f"{API_URL}/services/{svc['id']}/admins", headers=get_headers())
+                resp_admins = requests.get(f"{API_URL}/services/{svc['id']}/admins", headers=get_headers(API_URL))
                 if resp_admins.status_code == 200:
                     svc.update(resp_admins.json())
                 else:
                     svc.update({"primary": None, "secondary": None})
-                inc_resp = requests.get(f"{API_URL}/services/{svc['id']}/incidents")
+                inc_resp = requests.get(f"{API_URL}/services/{svc['id']}/incidents", headers=get_headers(API_URL))
                 if inc_resp.status_code == 200:
                     svc['incidents'] = inc_resp.json()
                 else:
@@ -156,7 +157,7 @@ def add_service():
             "failure_threshold": int(request.form.get('threshold'))  # new field
         }
 
-        resp = requests.post(f"{API_URL}/services", json=svc_payload, headers=get_headers())
+        resp = requests.post(f"{API_URL}/services", json=svc_payload, headers=get_headers(API_URL))
 
         if resp.status_code in [200, 201]:
             data = resp.json()
@@ -171,7 +172,7 @@ def add_service():
             resp_primary = requests.post(
                 f"{API_URL}/services/{service_id}/admin",
                 json=primary_admin_payload,
-                headers=get_headers()
+                headers=get_headers(API_URL)
             )
             if resp_primary.status_code not in [200, 201]:
                 flash(f"Error assigning primary admin: {resp_primary.text}", "danger")
@@ -188,7 +189,7 @@ def add_service():
                 resp_secondary = requests.post(
                     f"{API_URL}/services/{service_id}/admin",
                     json=secondary_admin_payload,
-                    headers=get_headers()
+                    headers=get_headers(API_URL)
                 )
                 if resp_secondary.status_code not in [200, 201]:
                     flash(f"Error assigning secondary admin: {resp_secondary.text}", "danger")
@@ -204,31 +205,41 @@ def add_service():
 
     return render_template('add_service.html', admins=other_admins)
 
-
 @app.route('/service/<int:service_id>/edit', methods=['GET', 'POST'])
 def edit_service(service_id):
     if 'user_id' not in session:
         return redirect(url_for('index'))
 
     # 1. Fetch service details from API
-    resp_service = requests.get(f"{API_URL}/services/{service_id}", headers=get_headers())
+    resp_service = requests.get(f"{API_URL}/services/{service_id}", headers=get_headers(API_URL))
     if resp_service.status_code != 200:
         flash(f"Service not found: {resp_service.text}", "danger")
         return redirect(url_for('dashboard'))
     service = resp_service.json()
 
     # 2. Fetch current admins for the service
-    resp_admins = requests.get(f"{API_URL}/services/{service_id}/admins", headers=get_headers())
-    if resp_admins.status_code != 200:
-        flash(f"Failed to fetch service admins: {resp_admins.text}", "danger")
-        return redirect(url_for('dashboard'))
-    
-    current_admins = resp_admins.json()
+    current_admins = {"primary": None, "secondary": None} # default values
+    try:
+        resp_admins = requests.get(f"{API_URL}/services/{service_id}/admins", headers=get_headers(API_URL))
+        if resp_admins.status_code == 200:
+            data = resp_admins.json()
+            current_admins["primary"] = data.get("primary")
+            current_admins["secondary"] = data.get("secondary")
+            
+    except Exception as e:
+        print(f"Error loading admins: {e}")
 
     # 3. Fetch all other admins for dropdown (exclude current user)
     all_admins = fetch_all_admins()
 
     if request.method == 'POST':
+        # Get current admin ids
+        curr_prim = current_admins.get('primary')
+        curr_prim_id = curr_prim['id'] if curr_prim else -1
+        
+        curr_sec = current_admins.get('secondary')
+        curr_sec_id = curr_sec['id'] if curr_sec else -1
+
         # 4. Update service fields
         svc_payload = {
             "frequency_seconds": int(request.form.get('frequency_seconds')),
@@ -238,7 +249,7 @@ def edit_service(service_id):
         resp_update_service = requests.put(
             f"{API_URL}/services/{service_id}",
             json=svc_payload,
-            headers=get_headers()
+            headers=get_headers(API_URL)
         )
         if resp_update_service.status_code not in [200, 201]:
             flash(f"Failed to update service: {resp_update_service.text}", "danger")
@@ -248,27 +259,36 @@ def edit_service(service_id):
         primary_admin_id = request.form.get('primary')
         secondary_admin_id = request.form.get('secondary')
 
-        if primary_admin_id and (current_admins.get('primary')['id'] != int(primary_admin_id)):
+        # Primary
+        if primary_admin_id and (curr_prim_id != int(primary_admin_id)):
             payload = {
                 "role": "primary",
                 "new_admin_id": int(primary_admin_id)
             }
-            resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
+            resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers(API_URL))
             if resp_admin.status_code not in [200, 201]:
                 flash(f"Failed to update primary admin: {resp_admin.text}", "danger")
                 return redirect(url_for('edit_service', service_id=service_id))
+        
+        # Secondary
+        if secondary_admin_id and (curr_sec_id != int(secondary_admin_id)):
+            if curr_sec_id != -1:  # secondary admin existed: update them
+                payload = {
+                    "role": "secondary",
+                    "new_admin_id": int(secondary_admin_id)
+                }
+                resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers(API_URL))
+            else:  # secondary admin didn't exist: create one
+                payload = {
+                    "service_id": service_id, 
+                    "role": "secondary", 
+                    "admin_id": int(secondary_admin_id)
+                }
+                resp_admin = requests.post(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers(API_URL))
 
-        if secondary_admin_id and current_admins.get('secondary')['id'] != int(secondary_admin_id):
-            payload = {
-                "role": "secondary",
-                "new_admin_id": int(secondary_admin_id)
-            }
-
-            resp_admin = requests.put(f"{API_URL}/services/{service_id}/admin", json=payload, headers=get_headers())
             if resp_admin.status_code not in [200, 201]:
                 flash(f"Failed to update secondary admin: {resp_admin.text}", "danger")
                 return redirect(url_for('edit_service', service_id=service_id))
-            
 
         flash("Service and admins updated successfully.", "success")
         return redirect(url_for('dashboard'))
@@ -282,15 +302,13 @@ def edit_service(service_id):
     )
 
 
-
 @app.route('/service/delete/<int:service_id>', methods=['POST'])
 def delete_service(service_id):
     if 'user_id' not in session:
         return redirect(url_for('index'))
     
     try:
-        # Call your FastAPI DELETE endpoint
-        resp = requests.delete(f"{API_URL}/services/{service_id}")
+        resp = requests.delete(f"{API_URL}/services/{service_id}", headers=get_headers(API_URL))
         
         if resp.status_code == 200:
             flash("Service successfully deleted.", "success")
@@ -311,12 +329,12 @@ def profile():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        # Update Contact Method
+        # Update contact method
         new_email = request.form.get('email')
         resp = requests.patch(
             f"{API_URL}/admins/{session['user_id']}",
             json={"contact_value": new_email, "contact_type": "email"},
-            headers=get_headers()
+            headers=get_headers(API_URL)
         )
         if resp.status_code == 200:
             session['user_email'] = new_email
@@ -325,6 +343,52 @@ def profile():
             flash("Update failed.", "danger")
             
     return render_template('profile.html')
+
+
+@app.route('/incidents/ack', methods=['GET', 'POST'])
+def acknowledge_incident():
+    """
+    Handles the incident acknowledgment link from emails.
+    
+    GET: Renders a confirmation page (prevents email scanners from triggering the action).
+    POST: Sends the acknowledgment request to the private backend API.
+    """
+    
+    # 1. Retrieve token from URL (GET) or Form Body (POST)
+    token = request.args.get('token') or request.form.get('token')
+
+    if not token:
+        return render_template('acknowledge.html', error="Missing token in the link.")
+
+    # 2. Handle the User's Click (POST)
+    if request.method == 'POST':
+        try:
+            # Send the token to the private API to confirm the incident
+            payload = {"token": token}
+            resp = requests.post(
+                f"{API_URL}/incidents/ack", 
+                json=payload, 
+                headers=get_headers(API_URL)
+            )
+
+            if resp.status_code == 200:
+                return render_template('acknowledge.html', success=True)
+            
+            elif resp.status_code == 404:
+                return render_template('acknowledge.html', error="Incident not found or token invalid.")
+            
+            elif resp.status_code == 409:
+                return render_template('acknowledge.html', error="Incident already acknowledged.")
+            
+            else:
+                error_detail = resp.json().get('detail', 'Unknown error')
+                return render_template('acknowledge.html', error=f"API Error: {error_detail}")
+
+        except requests.exceptions.RequestException as e:
+            return render_template('acknowledge.html', error=f"Connection to backend failed: {str(e)}")
+
+    # 3. Handle Initial Page Load (GET)
+    return render_template('acknowledge.html', token=token)
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)

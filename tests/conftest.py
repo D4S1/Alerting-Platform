@@ -10,7 +10,6 @@ from datetime import datetime, timezone, timedelta
 from api.main import app
 from api import db as db_module
 from utils.models import Base, Service, Admin, ServiceAdmin, Incident, ContactAttempt
-from config import JWTConfig
 
 
 # -----------------------------
@@ -21,7 +20,7 @@ def pytest_configure(config):
     """
     Sets environment variables for tests.
     """
-    os.environ["JWT_SECRET"] = "test-secret-key-for-ci"
+    os.environ["JWT_SECRET"] = "test-secret-key"
     os.environ["SMTP_HOST"] = "localhost"
     os.environ["SMTP_USERNAME"] = "test-user"
     os.environ["SMTP_PASSWORD"] = "test-password"
@@ -50,15 +49,12 @@ def db_session(tmp_path):
     session: Session = TestingSessionLocal()
     try:
         # Admins
-        admins = [
+        admins=[
             Admin(name="Alice", contact_type="email", contact_value="alice@test.com"),
             Admin(name="Bob", contact_type="email", contact_value="bob@test.com"),
             Admin(name="Hanna", contact_type="email", contact_value="hanna@test.com"),
             Admin(name="John", contact_type="email", contact_value="john@test.com"),
         ]
-        session.add_all(admins)
-
-        # Services
         services = [
             Service(
                 name="svc1",
@@ -78,6 +74,7 @@ def db_session(tmp_path):
             ),
         ]
         session.add_all(services)
+        session.add_all(admins)
         session.commit()
 
         # ServiceAdmins
@@ -139,12 +136,9 @@ def client(db_session):
 # Test helpers
 # -----------------------------
 
-def make_ack_token(incident_id=1, admin_id=1, expired=False):
+def make_ack_token(incident_id=1, admin_id=1, jwt_secret="test-secret-key"):
     payload = {
         "incident_id": incident_id,
         "admin_id": admin_id,
-        "exp": datetime.now(timezone.utc) - timedelta(minutes=1)
-        if expired
-        else datetime.now(timezone.utc) + timedelta(minutes=10),
     }
-    return jwt.encode(payload, JWTConfig.JWT_SECRET, algorithm="HS256")
+    return jwt.encode(payload, jwt_secret, algorithm="HS256")

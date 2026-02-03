@@ -6,17 +6,13 @@ WORKDIR /app
 
 # Install dependencies
 COPY requirements.txt .
+COPY notification_module/ ./notification_module/
+COPY utils/ ./utils/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the app
-COPY . .
-
 # Set environment variables (can also be set in Cloud Run console)
-ENV PYTHONUNBUFFERED True
+ENV PYTHONUNBUFFERED=true
 
 # Command to run your notification app
 # -b 0.0.0.0:$PORT to bind to all interfaces on the port defined by Cloud Run
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
-
-
-
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "0", "notification_module.main:app"]

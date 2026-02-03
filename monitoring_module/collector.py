@@ -3,7 +3,7 @@ import asyncio
 import json
 import httpx
 from google.cloud import pubsub_v1
-
+from utils.auth import get_headers_async
 
 class IPStatusCollector:
 
@@ -11,7 +11,7 @@ class IPStatusCollector:
         self.service = service
         self.api_base_url = api_base_url.rstrip("/")
         self.pubsub_topic = pubsub_topic
-        self.publisher = None # publisher or pubsub_v1.PublisherClient()
+        self.publisher = publisher or pubsub_v1.PublisherClient()
 
         self.alerting_window_seconds = (
             self.service["alerting_window_npings"]
@@ -48,37 +48,53 @@ class IPStatusCollector:
 
     async def _record_failure(self):
         url = f"{self.api_base_url}/services/{self.service['id']}/failures"
+        headers = await get_headers_async(self.api_base_url)
+        
         async with httpx.AsyncClient() as client:
-            await client.post(url)
+            await client.post(url, headers=headers)
 
     async def _should_trigger_incident(self) -> bool:
         url = f"{self.api_base_url}/services/{self.service['id']}/failures/recent"
         params = {"window_seconds": self.alerting_window_seconds}
+        headers = await get_headers_async(self.api_base_url)
+
         async with httpx.AsyncClient() as client:
-            r = await client.get(url, params=params)
-            failures = await r.json()
+            r = await client.get(url, params=params, headers=headers)
+            if r.status_code != 200:
+                print(f"API Error in _should_trigger_incident: {r.status_code}")
+                return False
+                
+            failures = r.json()
             return len(failures) >= self.service["failure_threshold"]
 
     # ------------------ Incidents (API) ------------------
 
     async def _get_open_incident(self):
         url = f"{self.api_base_url}/services/{self.service['id']}/incidents/open"
+        headers = await get_headers_async(self.api_base_url)
+
         async with httpx.AsyncClient() as client:
-            r = await client.get(url)
+            r = await client.get(url, headers=headers)
+            if r.status_code != 200:
+                return None
             incidents = r.json()
             return incidents[0] if incidents else None
 
     async def _create_incident(self):
         url = f"{self.api_base_url}/services/{self.service['id']}/incidents"
+        headers = await get_headers_async(self.api_base_url)
+
         async with httpx.AsyncClient() as client:
-            r = await client.post(url)
+            r = await client.post(url, headers=headers)
             return r.json()
 
     async def _resolve_incident(self, incident_id: int):
         # Resolve via API
         url = f"{self.api_base_url}/incidents/{incident_id}/resolve"
+        headers = await get_headers_async(self.api_base_url)
+
         async with httpx.AsyncClient() as client:
-            r = await client.patch(url)
+            r = await client.patch(url, headers=headers)
             resolved_incident = r.json()
 
         # Send Pub/Sub notification

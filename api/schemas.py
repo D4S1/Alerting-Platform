@@ -75,3 +75,7 @@ class ContactAttemptCreate(BaseModel):
     incident_id: int
     admin_id: int
     channel: str
+
+
+class AckRequest(BaseModel):
+    token: str

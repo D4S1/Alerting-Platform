@@ -2,10 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ENV PYTHONUNBUFFERED=1
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+COPY ui/ ./ui/
+COPY utils/ ./utils/
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
-
-CMD sh -c "gunicorn --bind 0.0.0.0:$PORT ui.app:app"
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "ui.app:app"]
