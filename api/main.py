@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 import os
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from api.db import get_db, engine
 from utils.models import Base
-from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut, ContactAttemptCreate, AckRequest
+from api.schemas import ServiceCreate, ServiceEdit, AdminContactUpdate, ServiceAdminCreate, ServiceAdminUpdate, AdminCreate, ServiceOut, AdminOut, ContactAttemptCreate, AckRequest, ContactAttemptOut
 from utils.models import Service, Admin, ServiceAdmin, Incident, PingFailure, ContactAttempt
 
 @asynccontextmanager
@@ -424,3 +424,19 @@ def update_contact_attempt(attempt_id: int, result: str, db: Session = Depends(g
     db.commit()
     db.refresh(attempt)
     return attempt
+    c
+
+@app.get("/contact_attempts", response_model=list[ContactAttemptOut])
+def get_contact_attempts(service_id: int, db: Session = Depends(get_db)):
+    attempts = (
+        db.query(ContactAttempt)
+        .join(Incident)
+        .options(joinedload(ContactAttempt.admin)) 
+        .filter(Incident.service_id == service_id)
+        .all()
+    )
+
+    for a in attempts:
+        a.admin_name = a.admin.name
+        
+    return attempts

@@ -77,5 +77,15 @@ class ContactAttemptCreate(BaseModel):
     channel: str
 
 
+class ContactAttemptOut(BaseModel):
+    incident_id: int
+    admin_name: str
+    channel: str
+    attempted_at:datetime
+    response_at: datetime | None = None 
+    
+    class Config:
+        from_attributes = True
+
 class AckRequest(BaseModel):
     token: str

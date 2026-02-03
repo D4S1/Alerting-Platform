@@ -136,6 +136,12 @@ def dashboard():
                 else:
                     svc['incidents'] = []
 
+                att_resp = requests.get(f"{API_URL}/contact_attempts?service_id={svc['id']}", headers=get_headers(API_URL))
+                if att_resp.status_code == 200:
+                    svc['attempts'] = att_resp.json()
+                else:
+                    svc['attempts'] = []
+
     except requests.exceptions.RequestException:
         flash("Could not connect to backend to fetch data.", "warning")
 
