@@ -26,12 +26,20 @@ class Service(Base):
     incidents = relationship(
         "Incident",
         back_populates="service",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        passive_deletes=True
     )
     admins = relationship(
         "ServiceAdmin",
         back_populates="service",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+    ping_failures = relationship(
+        "PingFailure",
+        back_populates="service",
+        cascade="all, delete-orphan",
+        passive_deletes=True
     )
 
 
@@ -43,7 +51,11 @@ class Admin(Base):
     contact_type = Column(String, nullable=False)
     contact_value = Column(String, nullable=False)
 
-    services = relationship("ServiceAdmin", back_populates="admin")
+    services = relationship(
+        "ServiceAdmin",
+        back_populates="admin",
+        cascade="all, delete-orphan"
+    )
     contact_attempts = relationship(
         "ContactAttempt",
         back_populates="admin",
@@ -54,8 +66,8 @@ class Admin(Base):
 class ServiceAdmin(Base):
     __tablename__ = "service_admins"
 
-    service_id = Column(Integer, ForeignKey("services.id"), primary_key=True)
-    admin_id = Column(Integer, ForeignKey("admins.id"), primary_key=True)
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), primary_key=True)
+    admin_id = Column(Integer, ForeignKey("admins.id", ondelete="CASCADE"), primary_key=True)
     role = Column(String, nullable=False)
 
     __table_args__ = (
@@ -70,7 +82,7 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     id = Column(Integer, primary_key=True)
-    service_id = Column(Integer, ForeignKey("services.id"), nullable=False)
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), nullable=False)
 
     started_at = Column(
         DateTime,
@@ -96,7 +108,8 @@ class Incident(Base):
     contact_attempts = relationship(
         "ContactAttempt",
         back_populates="incident",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        passive_deletes=True
     )
 
 
@@ -104,8 +117,8 @@ class ContactAttempt(Base):
     __tablename__ = "contact_attempts"
 
     id = Column(Integer, primary_key=True)
-    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=False)
-    admin_id = Column(Integer, ForeignKey("admins.id"), nullable=False)
+    incident_id = Column(Integer, ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False)
+    admin_id = Column(Integer, ForeignKey("admins.id", ondelete="CASCADE"), nullable=False)
 
     attempted_at = Column(DateTime, nullable=False)
     channel = Column(String, nullable=False)
@@ -120,5 +133,7 @@ class PingFailure(Base):
     __tablename__ = "ping_failures"
 
     id = Column(Integer, primary_key=True)
-    service_id = Column(Integer, ForeignKey("services.id"), index=True)
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), index=True)
     failed_at = Column(DateTime(timezone=True), index=True, default=lambda: datetime.now(timezone.utc))
+
+    service = relationship("Service", back_populates="ping_failures")

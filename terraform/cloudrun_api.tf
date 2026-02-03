@@ -1,5 +1,5 @@
 resource "google_cloud_run_service" "api" {
-  depends_on = [google_secret_manager_secret_iam_member.api_access, google_cloud_run_v2_job.db_init]
+  depends_on = [google_secret_manager_secret_iam_member.api_access]
   name     = "alerting-api"
   location = var.region
 

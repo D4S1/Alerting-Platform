@@ -23,3 +23,20 @@ resource "google_cloud_run_v2_job" "monitoring" {
     }
   }
 }
+
+resource "google_cloud_scheduler_job" "cleanup_job" {
+  name             = "failure-ping-cleanup-scheduler"
+  description      = "Triggers the /failures/cleanup endpoint via DELETE every 5 minutes"
+  schedule         = "*/5 * * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "320s"
+
+  http_target {
+    http_method = "DELETE"
+    uri         = "${google_cloud_run_service.api.status[0].url}/failures/cleanup"
+    
+    oidc_token {
+      service_account_email = google_service_account.invoker.email
+    }
+  }
+}

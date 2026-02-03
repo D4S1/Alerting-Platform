@@ -34,7 +34,7 @@ def mock_tasks_client(monkeypatch):
 def test_acknowledge_incident_success(client, db_session):
     token = make_ack_token(incident_id=1, admin_id=1)
 
-    response = client.get(f"/incidents/ack?token={token}")
+    response = client.post(f"/incidents/ack", json={'token': token})
 
     assert response.status_code == 200
     assert response.json()["status"] == "acknowledged"
@@ -50,8 +50,8 @@ def test_acknowledge_incident_success(client, db_session):
 def test_acknowledge_idempotent(client):
     token = make_ack_token(incident_id=1, admin_id=1)
 
-    r1 = client.get(f"/incidents/ack?token={token}")
-    r2 = client.get(f"/incidents/ack?token={token}")
+    r1 = client.post(f"/incidents/ack", json={'token': token})
+    r2 = client.post(f"/incidents/ack", json={'token': token})
 
     assert r1.json()["status"] == "acknowledged"
     assert r2.json()["status"] == "already acknowledged"
@@ -66,12 +66,12 @@ def test_acknowledge_resolved_incident(client, db_session):
     db_session.commit()
 
     token = make_ack_token(incident_id=1, admin_id=1)
-    response = client.get(f"/incidents/ack?token={token}")
+    response = client.post(f"/incidents/ack", json={'token': token})
 
     assert response.json()["status"] == "already resolved"
 
 def test_acknowledge_invalid_token(client):
-    response = client.get("/incidents/ack?token=not-a-jwt")
+    response = client.post("/incidents/ack", json={'token': "not-a-jwt"})
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid token"
@@ -79,7 +79,7 @@ def test_acknowledge_invalid_token(client):
 def test_contact_attempt_updated_on_ack(client, db_session):
     token = make_ack_token(incident_id=1, admin_id=1)
 
-    client.get(f"/incidents/ack?token={token}")
+    client.post(f"/incidents/ack", json={'token': token})
 
     attempt = (
         db_session.query(ContactAttempt)
